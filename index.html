@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Precios — OfficeMax Archivo y Accesorios</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f4ef;
+  --bg-tertiary: #faf9f5;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b6b6b;
+  --text-tertiary: #888780;
+  --border: rgba(0,0,0,0.15);
+  --border-strong: rgba(0,0,0,0.3);
+  --c-blue-50: #E6F1FB; --c-blue-600: #185FA5; --c-blue-800: #0C447C;
+  --c-teal-50: #E1F5EE; --c-teal-600: #0F6E56; --c-teal-800: #085041;
+  --c-amber-50: #FAEEDA; --c-amber-600: #854F0B; --c-amber-800: #633806;
+  --c-red-50: #FCEBEB; --c-red-600: #A32D2D; --c-red-800: #791F1F;
+  --c-purple-50: #EEEDFE; --c-purple-600: #534AB7; --c-purple-800: #3C3489;
+  --c-gray-50: #F1EFE8; --c-gray-600: #5F5E5A;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 24px;
+  background: var(--bg-tertiary);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+h1 { font-size: 24px; font-weight: 500; margin: 0 0 4px; }
+h2 { font-size: 18px; font-weight: 500; margin: 24px 0 12px; }
+h3 { font-size: 14px; font-weight: 500; margin: 0 0 8px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 24px; }
+
+.card {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.metric {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+.metric-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.metric-value {
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.metric-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+.metric-positive { color: var(--c-teal-800); }
+.metric-negative { color: var(--c-red-800); }
+
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+select, input[type="text"], input[type="number"] {
+  padding: 8px 12px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg-primary);
+  height: 36px;
+}
+input[type="text"]:focus, select:focus {
+  outline: none;
+  border-color: var(--c-blue-600);
+  box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.2);
+}
+.sku-select { min-width: 360px; flex: 1; }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--c-blue-600);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--c-blue-600);
+  cursor: pointer;
+  border: none;
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+}
+.badge-elastico { background: var(--c-red-50); color: var(--c-red-800); }
+.badge-inelastico { background: var(--c-amber-50); color: var(--c-amber-800); }
+.badge-sin-reaccion { background: var(--c-gray-50); color: var(--c-gray-600); }
+.badge-elastico-ns { background: var(--c-purple-50); color: var(--c-purple-800); }
+.badge-sin-datos { background: var(--c-gray-50); color: var(--c-gray-600); }
+
+.action-bajar { background: var(--c-blue-50); color: var(--c-blue-800); }
+.action-subir { background: var(--c-teal-50); color: var(--c-teal-800); }
+.action-subir-direc { background: var(--c-amber-50); color: var(--c-amber-800); }
+.action-mantener { background: var(--c-gray-50); color: var(--c-gray-600); }
+.action-investigar { background: var(--c-purple-50); color: var(--c-purple-800); }
+
+.chart-wrap {
+  position: relative;
+  height: 280px;
+  margin: 20px 0 8px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+}
+th {
+  text-align: left;
+  font-weight: 500;
+  padding: 8px 10px;
+  border-bottom: 0.5px solid var(--border-strong);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+td {
+  padding: 8px 10px;
+  border-bottom: 0.5px solid var(--border);
+}
+td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.scenario-table tr.current td {
+  background: var(--c-blue-50);
+  font-weight: 500;
+}
+.recom-banner {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.recom-banner-icon {
+  font-size: 22px;
+  font-weight: 500;
+}
+.icon-bajar { color: var(--c-blue-600); }
+.icon-subir { color: var(--c-teal-600); }
+.icon-mantener { color: var(--text-secondary); }
+.icon-investigar { color: var(--c-purple-600); }
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 0.5px solid var(--border);
+  margin: 0 0 16px;
+}
+.tab {
+  padding: 10px 16px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--c-blue-600);
+  font-weight: 500;
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.filter-row label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.filter-row select {
+  height: 32px;
+  font-size: 13px;
+}
+
+.note {
+  background: var(--c-amber-50);
+  border-left: 3px solid var(--c-amber-600);
+  padding: 12px 14px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  font-size: 13px;
+  color: var(--c-amber-800);
+  margin: 16px 0;
+}
+.footer {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 0.5px solid var(--border);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.summary-card {
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+.summary-card .num { font-size: 22px; font-weight: 500; }
+.summary-card .lbl { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+@media (max-width: 700px) {
+  .sku-select { min-width: 100%; }
+  .chart-wrap { height: 240px; }
+  body { padding: 12px; }
+}
+</style>
+</head>
+<body>
+
+<h1>Simulador de Precios</h1>
+<p class="subtitle">OfficeMax · Archivo y Accesorios · Análisis de elasticidad y simulación de escenarios</p>
+
+<div class="tabs">
+  <button class="tab active" data-tab="simulador">Simulador por SKU</button>
+  <button class="tab" data-tab="tabla">Tabla ejecutiva</button>
+  <button class="tab" data-tab="metodologia">Metodología</button>
+</div>
+
+<!-- TAB 1: SIMULADOR -->
+<div class="tab-panel active" id="tab-simulador">
+  <div class="card">
+    <h3>Selecciona un SKU para simular</h3>
+    <div class="controls-row">
+      <select id="sku-select" class="sku-select"></select>
+      <select id="filter-action" style="height:36px;">
+        <option value="">Todos los SKUs</option>
+        <option value="BAJAR">Solo BAJAR precio</option>
+        <option value="SUBIR">Solo SUBIR precio (fórmula óptima)</option>
+        <option value="SUBIR_DIRECCIONAL">Solo SUBIR (direccional)</option>
+        <option value="MANTENER">Solo MANTENER</option>
+        <option value="INVESTIGAR">Solo INVESTIGAR</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card" id="sku-info">
+    <!-- Se llena dinámicamente -->
+  </div>
+
+  <div class="card">
+    <h3>Mueve el precio para simular</h3>
+    <div class="controls-row">
+      <label style="min-width:80px; font-size:13px; color:var(--text-secondary);">Δ precio:</label>
+      <input type="range" id="price-slider" min="-30" max="30" step="1" value="0" style="flex:1;">
+      <span id="price-delta" style="min-width:60px; font-weight:500; text-align:right;">0%</span>
+    </div>
+    <div class="controls-row">
+      <button onclick="setSlider(-10)" style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">-10%</button>
+      <button onclick="setSlider(-5)" style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">-5%</button>
+      <button onclick="setSlider(0)" style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">0%</button>
+      <button onclick="setSlider(5)" style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">+5%</button>
+      <button onclick="setSlider(10)" style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">+10%</button>
+      <button id="btn-optimal" onclick="setSliderToOptimal()" style="padding:6px 12px; border:0.5px solid var(--c-blue-600); border-radius:6px; background:var(--c-blue-50); color:var(--c-blue-800); cursor:pointer; font-size:13px; font-weight:500;">Precio recomendado</button>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="metric-label">Precio nuevo</div>
+        <div class="metric-value" id="m-precio">$0.00</div>
+        <div class="metric-sub" id="m-precio-sub">precio actual $0.00</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Unidades estimadas</div>
+        <div class="metric-value" id="m-unidades">0</div>
+        <div class="metric-sub" id="m-unidades-sub">vs histórico 0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Ingreso estimado</div>
+        <div class="metric-value" id="m-ingreso">$0</div>
+        <div class="metric-sub" id="m-ingreso-sub">vs histórico $0</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Margen estimado</div>
+        <div class="metric-value" id="m-margen">$0</div>
+        <div class="metric-sub" id="m-margen-sub">vs histórico $0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Curvas de simulación</h3>
+    <div class="chart-wrap">
+      <canvas id="chart-sim"></canvas>
+    </div>
+    <p style="font-size:12px; color:var(--text-tertiary); margin:8px 0 0;">
+      La línea vertical azul muestra tu selección actual. La línea verde es ingreso; la roja es margen.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Escenarios pedidos por el profesor (-10%, -5%, 0%, +5%, +10%)</h3>
+    <table class="scenario-table" id="tabla-escenarios">
+      <thead>
+        <tr>
+          <th>Δ precio</th>
+          <th class="numeric">Precio nuevo</th>
+          <th class="numeric">Unidades</th>
+          <th class="numeric">Ingreso</th>
+          <th class="numeric">Margen</th>
+          <th class="numeric">Δ Ingreso</th>
+          <th class="numeric">Δ Margen</th>
+        </tr>
+      </thead>
+      <tbody id="escenarios-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB 2: TABLA EJECUTIVA -->
+<div class="tab-panel" id="tab-tabla">
+  <div class="card">
+    <h3>Distribución de los SKUs analizados</h3>
+    <div class="summary-stats" id="summary-stats"></div>
+  </div>
+
+  <div class="card">
+    <h3>Recomendaciones por SKU</h3>
+    <div class="filter-row">
+      <label>Acción:
+        <select id="filtro-accion-tabla">
+          <option value="">Todas</option>
+          <option value="BAJAR">BAJAR</option>
+          <option value="SUBIR">SUBIR (fórmula)</option>
+          <option value="SUBIR_DIRECCIONAL">SUBIR (direccional)</option>
+          <option value="MANTENER">MANTENER</option>
+          <option value="INVESTIGAR">INVESTIGAR</option>
+        </select>
+      </label>
+      <label>Clasificación:
+        <select id="filtro-clase-tabla">
+          <option value="">Todas</option>
+          <option value="ELASTICO">Elástico ★</option>
+          <option value="Elastico_NS">Elástico no significativo</option>
+          <option value="Inelastico">Inelástico</option>
+          <option value="Sin_reaccion">Sin reacción</option>
+          <option value="Sin datos">Sin datos</option>
+        </select>
+      </label>
+      <input type="text" id="buscar-tabla" placeholder="Buscar por nombre o SKU..." style="flex:1; min-width:200px;">
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table id="tabla-maestra">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Producto</th>
+            <th>Clasificación</th>
+            <th class="numeric">β</th>
+            <th class="numeric">Precio actual</th>
+            <th class="numeric">Precio rec.</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 3: METODOLOGÍA -->
+<div class="tab-panel" id="tab-metodologia">
+  <div class="card">
+    <h2 style="margin-top:0;">Cómo funciona el simulador</h2>
+
+    <h3>Modelo de elasticidad</h3>
+    <p style="font-size:14px;">
+      Se estima β para cada SKU usando regresión log-log sobre ventanas semestrales deslizantes (6 meses, deslizando 1 mes a la vez):
+    </p>
+    <p style="font-family:monospace; background:var(--bg-secondary); padding:12px; border-radius:var(--radius-md); font-size:13px;">
+      log(unidades + 1) = α + β × log(precio_real)
+    </p>
+
+    <h3 style="margin-top:24px;">Fórmulas del simulador (las que pidió el profe)</h3>
+    <p style="font-family:monospace; background:var(--bg-secondary); padding:12px; border-radius:var(--radius-md); font-size:13px;">
+      unidades_simuladas = unidades_actuales × (precio_nuevo / precio_actual) ^ β<br>
+      ingreso_simulado = precio_nuevo × unidades_simuladas<br>
+      margen_simulado = (precio_nuevo − costo_unitario) × unidades_simuladas
+    </p>
+
+    <h3 style="margin-top:24px;">Clasificación de SKUs</h3>
+    <table style="font-size:13px;">
+      <tr><td><span class="badge badge-elastico">ELÁSTICO ★</span></td><td>β &lt; -1 y p &lt; 0.10 — el cliente reacciona al precio</td></tr>
+      <tr><td><span class="badge badge-elastico-ns">Elástico n.s.</span></td><td>β &lt; -1 pero p ≥ 0.10 — aparente elasticidad ruidosa</td></tr>
+      <tr><td><span class="badge badge-inelastico">Inelástico</span></td><td>-1 &lt; β &lt; 0 — cliente responde poco al precio</td></tr>
+      <tr><td><span class="badge badge-sin-reaccion">Sin reacción</span></td><td>β ≥ 0 — sospechoso, requiere diagnóstico individual</td></tr>
+    </table>
+
+    <h3 style="margin-top:24px;">Recomendación de acción</h3>
+    <table style="font-size:13px;">
+      <tr><td><span class="badge action-bajar">BAJAR</span></td><td>Elástico con precio actual &gt; precio óptimo p* = c × β/(β+1)</td></tr>
+      <tr><td><span class="badge action-subir">SUBIR</span></td><td>Elástico con precio actual &lt; precio óptimo (subprecio)</td></tr>
+      <tr><td><span class="badge action-subir-direc">SUBIR (direccional)</span></td><td>Inelástico — hipótesis a validar con prueba A/B</td></tr>
+      <tr><td><span class="badge action-mantener">MANTENER</span></td><td>Sin evidencia para mover el precio</td></tr>
+      <tr><td><span class="badge action-investigar">INVESTIGAR</span></td><td>β positivo sospechoso — revisar datos</td></tr>
+    </table>
+
+    <div class="note" style="margin-top:24px;">
+      <strong>Advertencia obligatoria del profesor:</strong> si el costo tiene inconsistencias, el margen es exploratorio, no definitivo. La base de costos de OfficeMax presenta inconsistencias documentadas (productos con precio &lt; costo), por lo que los márgenes simulados son direccionales, no estimaciones absolutas. Validar con prueba A/B en 2-3 tiendas antes de rollout.
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Simulador generado a partir del análisis de elasticidad sobre 51 SKUs con n≥30 transacciones · 26,891 ventas, 28 meses (ene-2024 a abr-2026)
+</div>
+
+<script>
+// DATOS EMBEBIDOS — sustituidos automáticamente por el notebook
+const SKUS_DATA = [{"sku": 50094200, "nombre": "REFUERZO CARP BLANCO 210P OMX", "clase": "REFUERZOS PARA CARPETA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 9.317, "p_value": 0.0252, "clasificacion": "Sin_reaccion", "costo": 21.48, "precio_actual": 36.08, "precio_min_hist": 26.49, "precio_max_hist": 40.65, "unidades_hist": 97, "precio_recomendado": 36.08, "accion": "INVESTIGAR", "n_trans": 77}, {"sku": 50076882, "nombre": "ETIQUETA OMX BLANCA CARTA 50PZ", "clase": "ETIQUETAS DE IMPRESION", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 1.282, "p_value": 0.5178, "clasificacion": "Sin_reaccion", "costo": 122.16, "precio_actual": 179.53, "precio_min_hist": 123.71, "precio_max_hist": 202.78, "unidades_hist": 322, "precio_recomendado": 179.53, "accion": "MANTENER", "n_trans": 255}, {"sku": 50049770, "nombre": "ETIQUETA CARTA BLANCA 50P", "clase": "ETIQUETAS ESPECIALES", "tipo_marca": "Marca Externa", "marca": "POCHTECA", "beta": -5.082, "p_value": 0.0118, "clasificacion": "ELASTICO", "costo": 207.54, "precio_actual": 249.33, "precio_min_hist": 180.43, "precio_max_hist": 276.85, "unidades_hist": 95, "precio_recomendado": 258.38, "accion": "MANTENER", "n_trans": 68}, {"sku": 50011910, "nombre": "TARJETA OXFORD IND BLANCA 100P", "clase": "TARJETAS INDICE BLANCAS", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": 1.358, "p_value": 0.2936, "clasificacion": "Sin_reaccion", "costo": 9.38, "precio_actual": 21.11, "precio_min_hist": 15.02, "precio_max_hist": 21.47, "unidades_hist": 78, "precio_recomendado": 21.11, "accion": "MANTENER", "n_trans": 66}, {"sku": 50094187, "nombre": "REFUERZO CARP AZUL 210P OMX", "clase": "REFUERZOS PARA CARPETA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -5.137, "p_value": 0.0006, "clasificacion": "ELASTICO", "costo": 24.84, "precio_actual": 33.8, "precio_min_hist": 26.49, "precio_max_hist": 40.65, "unidades_hist": 67, "precio_recomendado": 30.84, "accion": "BAJAR", "n_trans": 56}, {"sku": 50086329, "nombre": "FOLDER DE POLIPROPILENO V/COL", "clase": "FOLDERS DE POLIPROPILENO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -0.059, "p_value": 0.9474, "clasificacion": "Inelastico", "costo": 8.9, "precio_actual": 26.15, "precio_min_hist": 16.84, "precio_max_hist": 32.41, "unidades_hist": 154, "precio_recomendado": 28.76, "accion": "SUBIR_DIRECCIONAL", "n_trans": 77}, {"sku": 50094195, "nombre": "REFUERZO CARP ROJO 210P OMX", "clase": "REFUERZOS PARA CARPETA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -10.373, "p_value": 0.0001, "clasificacion": "ELASTICO", "costo": 21.48, "precio_actual": 35.16, "precio_min_hist": 29.23, "precio_max_hist": 36.12, "unidades_hist": 36, "precio_recomendado": 23.77, "accion": "BAJAR", "n_trans": 31}, {"sku": 50061745, "nombre": "FOLDER OMX CARTA KRAFT 25PK", "clase": "FOLDERS KRAFT", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -2.921, "p_value": 0.0624, "clasificacion": "ELASTICO", "costo": 37.72, "precio_actual": 77.98, "precio_min_hist": 54.25, "precio_max_hist": 86.12, "unidades_hist": 37, "precio_recomendado": 57.35, "accion": "BAJAR", "n_trans": 32}, {"sku": 50011911, "nombre": "TARJETA INDICE BLANCA 4X6 100P", "clase": "TARJETAS INDICE BLANCAS", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": -2.918, "p_value": 0.0037, "clasificacion": "ELASTICO", "costo": 19.13, "precio_actual": 35.99, "precio_min_hist": 34.91, "precio_max_hist": 38.71, "unidades_hist": 52, "precio_recomendado": 29.1, "accion": "BAJAR", "n_trans": 41}, {"sku": 50116770, "nombre": "ARCHIVERO EXPAND STUK ROSA 5D", "clase": "FOLDERS DE POLIPROPILENO", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -4.031, "p_value": 0.0, "clasificacion": "ELASTICO", "costo": 39.76, "precio_actual": 73.01, "precio_min_hist": 42.29, "precio_max_hist": 102.59, "unidades_hist": 59, "precio_recomendado": 52.87, "accion": "BAJAR", "n_trans": 58}, {"sku": 50029456, "nombre": "TARJETA INDI RAYADA 5X8 OXFORD", "clase": "TARJETAS RAYA Y CUADRO", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": -0.191, "p_value": 0.9382, "clasificacion": "Inelastico", "costo": 34.36, "precio_actual": 57.41, "precio_min_hist": 39.77, "precio_max_hist": 60.26, "unidades_hist": 35, "precio_recomendado": 63.15, "accion": "SUBIR_DIRECCIONAL", "n_trans": 30}, {"sku": 50061735, "nombre": "FOLDER OMX CARTA MANILA 100PK", "clase": "FOLDERS MANILA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.298, "p_value": 0.7946, "clasificacion": "Sin_reaccion", "costo": 152.04, "precio_actual": 197.95, "precio_min_hist": 138.19, "precio_max_hist": 225.93, "unidades_hist": 255, "precio_recomendado": 197.95, "accion": "MANTENER", "n_trans": 225}, {"sku": 50031938, "nombre": "FOLDER OMX CARTA MANILA 25PK", "clase": "FOLDERS MANILA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -5.261, "p_value": 0.0, "clasificacion": "ELASTICO", "costo": 42.26, "precio_actual": 66.35, "precio_min_hist": 44.66, "precio_max_hist": 94.83, "unidades_hist": 146, "precio_recomendado": 52.18, "accion": "BAJAR", "n_trans": 129}, {"sku": 50031939, "nombre": "FOLDER OMX OFICIO MANILA 25PK", "clase": "FOLDERS MANILA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -0.261, "p_value": 0.7335, "clasificacion": "Inelastico", "costo": 51.32, "precio_actual": 93.48, "precio_min_hist": 70.6, "precio_max_hist": 108.33, "unidades_hist": 41, "precio_recomendado": 102.83, "accion": "SUBIR_DIRECCIONAL", "n_trans": 38}, {"sku": 50061747, "nombre": "FOLDER OMXOFICIO MANILA 100PK", "clase": "FOLDERS MANILA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": null, "p_value": null, "clasificacion": "Sin datos", "costo": 169.06, "precio_actual": 222.44, "precio_min_hist": 188.32, "precio_max_hist": 249.08, "unidades_hist": 52, "precio_recomendado": 222.44, "accion": "MANTENER", "n_trans": 45}, {"sku": 50066388, "nombre": "CAJA ARCHIVO REGISTRADOR OFFIC", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -8.009, "p_value": 0.0, "clasificacion": "ELASTICO", "costo": 37.1, "precio_actual": 51.62, "precio_min_hist": 50.86, "precio_max_hist": 64.72, "unidades_hist": 290, "precio_recomendado": 42.4, "accion": "BAJAR", "n_trans": 99}, {"sku": 50099645, "nombre": "CAJA NO. 1 25 X 25 X 25", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "NIKOROS", "beta": -0.556, "p_value": 0.3717, "clasificacion": "Inelastico", "costo": 12.29, "precio_actual": 25.77, "precio_min_hist": 12.28, "precio_max_hist": 32.32, "unidades_hist": 264, "precio_recomendado": 28.35, "accion": "SUBIR_DIRECCIONAL", "n_trans": 141}, {"sku": 50099648, "nombre": "CAJA NO.4 50 X 50 X 50", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": 0.255, "p_value": 0.8928, "clasificacion": "Sin_reaccion", "costo": 50.29, "precio_actual": 82.74, "precio_min_hist": 53.97, "precio_max_hist": 92.5, "unidades_hist": 614, "precio_recomendado": 82.74, "accion": "MANTENER", "n_trans": 240}, {"sku": 50066389, "nombre": "CAJA ARCHIVO TAMA#O CARTA", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.1, "p_value": 0.8823, "clasificacion": "Sin_reaccion", "costo": 33.12, "precio_actual": 44.29, "precio_min_hist": 28.68, "precio_max_hist": 55.46, "unidades_hist": 766, "precio_recomendado": 44.29, "accion": "MANTENER", "n_trans": 242}, {"sku": 50066390, "nombre": "CAJA ARCHIVO OFICIO OFFICEMAX", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 1.947, "p_value": 0.0335, "clasificacion": "Sin_reaccion", "costo": 37.78, "precio_actual": 51.84, "precio_min_hist": 34.43, "precio_max_hist": 60.26, "unidades_hist": 922, "precio_recomendado": 51.84, "accion": "INVESTIGAR", "n_trans": 222}, {"sku": 50099646, "nombre": "CAJA NO. 2 50 X 25 X 25", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -0.635, "p_value": 0.156, "clasificacion": "Inelastico", "costo": 17.93, "precio_actual": 34.92, "precio_min_hist": 25.18, "precio_max_hist": 41.57, "unidades_hist": 283, "precio_recomendado": 38.41, "accion": "SUBIR_DIRECCIONAL", "n_trans": 117}, {"sku": 50099647, "nombre": "CAJA NO. 3 50 X 50 X 25", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": 1.387, "p_value": 0.0034, "clasificacion": "Sin_reaccion", "costo": 33.8, "precio_actual": 68.16, "precio_min_hist": 40.17, "precio_max_hist": 83.24, "unidades_hist": 368, "precio_recomendado": 68.16, "accion": "INVESTIGAR", "n_trans": 170}, {"sku": 50063372, "nombre": "CAJA DE ARCHIVO OXFORD OFICIO", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": 4.823, "p_value": 0.0006, "clasificacion": "Sin_reaccion", "costo": 38.26, "precio_actual": 60.82, "precio_min_hist": 49.66, "precio_max_hist": 69.35, "unidades_hist": 157, "precio_recomendado": 60.82, "accion": "INVESTIGAR", "n_trans": 45}, {"sku": 50068606, "nombre": "ETIQUETA BCA 20X105MM 168PZA/PQT", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": -1.235, "p_value": 0.0222, "clasificacion": "ELASTICO", "costo": 14.52, "precio_actual": 28.1, "precio_min_hist": 23.54, "precio_max_hist": 34.4, "unidades_hist": 63, "precio_recomendado": 76.35, "accion": "SUBIR", "n_trans": 41}, {"sku": 50068611, "nombre": "ETIQUETA BCA 19X38 420PZA/PQTE", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": 1.783, "p_value": 0.0145, "clasificacion": "Sin_reaccion", "costo": 14.52, "precio_actual": 28.44, "precio_min_hist": 17.44, "precio_max_hist": 34.4, "unidades_hist": 69, "precio_recomendado": 28.44, "accion": "INVESTIGAR", "n_trans": 34}, {"sku": 50094185, "nombre": "ETIQUETAS REDONDA MIXTAS 504P", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "AVERY", "beta": null, "p_value": null, "clasificacion": "Sin datos", "costo": 18.12, "precio_actual": 32.43, "precio_min_hist": 22.87, "precio_max_hist": 35.09, "unidades_hist": 66, "precio_recomendado": 32.43, "accion": "MANTENER", "n_trans": 53}, {"sku": 50068608, "nombre": "ETIQUETA BCA 32X64 144PZA/PQT", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": 1.947, "p_value": 0.0001, "clasificacion": "Sin_reaccion", "costo": 14.52, "precio_actual": 29.75, "precio_min_hist": 18.68, "precio_max_hist": 36.94, "unidades_hist": 81, "precio_recomendado": 29.75, "accion": "INVESTIGAR", "n_trans": 48}, {"sku": 50068605, "nombre": "ETIQUETA BLANCA ECONOPACK 50X100 JANEL", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": 1.367, "p_value": 0.007, "clasificacion": "Sin_reaccion", "costo": 14.71, "precio_actual": 29.24, "precio_min_hist": 17.44, "precio_max_hist": 36.94, "unidades_hist": 119, "precio_recomendado": 29.24, "accion": "INVESTIGAR", "n_trans": 77}, {"sku": 50068613, "nombre": "ETIQUETA BCA 13X38 600PZA/PQTE", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": -0.967, "p_value": 0.1456, "clasificacion": "Inelastico", "costo": 14.52, "precio_actual": 28.06, "precio_min_hist": 17.44, "precio_max_hist": 36.94, "unidades_hist": 93, "precio_recomendado": 30.86, "accion": "SUBIR_DIRECCIONAL", "n_trans": 62}, {"sku": 50068607, "nombre": "ETIQUETA BCA 08X20 1512PZA/PQT", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": -1.629, "p_value": 0.0004, "clasificacion": "ELASTICO", "costo": 14.71, "precio_actual": 27.56, "precio_min_hist": 17.44, "precio_max_hist": 34.4, "unidades_hist": 44, "precio_recomendado": 38.11, "accion": "SUBIR", "n_trans": 33}, {"sku": 50056533, "nombre": "ETIQUETA ADH CIR RJA 3/4", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "AVERY", "beta": 2.258, "p_value": 0.0779, "clasificacion": "Sin_reaccion", "costo": 71.23, "precio_actual": 101.87, "precio_min_hist": 75.17, "precio_max_hist": 119.44, "unidades_hist": 50, "precio_recomendado": 101.87, "accion": "MANTENER", "n_trans": 40}, {"sku": 50068612, "nombre": "ETIQUETA BLANCA ECONOPACK 19X50 JANEL", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": -1.769, "p_value": 0.0021, "clasificacion": "ELASTICO", "costo": 14.52, "precio_actual": 28.39, "precio_min_hist": 17.44, "precio_max_hist": 36.94, "unidades_hist": 81, "precio_recomendado": 33.4, "accion": "SUBIR", "n_trans": 50}, {"sku": 50020493, "nombre": "ETIQUETA ADH CIR CLR 3/4\" 100", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "AVERY", "beta": 4.393, "p_value": 0.0004, "clasificacion": "Sin_reaccion", "costo": 68.76, "precio_actual": 97.16, "precio_min_hist": 68.9, "precio_max_hist": 113.89, "unidades_hist": 64, "precio_recomendado": 97.16, "accion": "INVESTIGAR", "n_trans": 58}, {"sku": 50020492, "nombre": "ETIQUETA ADH CIR VDE 3/4\" 1008", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "AVERY", "beta": -0.336, "p_value": 0.5845, "clasificacion": "Inelastico", "costo": 71.23, "precio_actual": 101.19, "precio_min_hist": 65.77, "precio_max_hist": 111.94, "unidades_hist": 76, "precio_recomendado": 111.31, "accion": "SUBIR_DIRECCIONAL", "n_trans": 52}, {"sku": 50062188, "nombre": "ARCHIVERO ABAT 3DV COLORES OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -0.647, "p_value": 0.5331, "clasificacion": "Inelastico", "costo": 25.78, "precio_actual": 73.65, "precio_min_hist": 46.29, "precio_max_hist": 82.87, "unidades_hist": 92, "precio_recomendado": 81.02, "accion": "SUBIR_DIRECCIONAL", "n_trans": 80}, {"sku": 50062187, "nombre": "ARCHIVERO EXPAND NG TO 13D OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -3.212, "p_value": 0.126, "clasificacion": "Elastico_NS", "costo": 55.9, "precio_actual": 132.82, "precio_min_hist": 99.57, "precio_max_hist": 156.48, "unidades_hist": 163, "precio_recomendado": 132.82, "accion": "MANTENER", "n_trans": 125}, {"sku": 50062034, "nombre": "ARCHIVERO EXPAN KRAFT 21DV OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.205, "p_value": 0.8369, "clasificacion": "Sin_reaccion", "costo": 131.54, "precio_actual": 257.9, "precio_min_hist": 180.43, "precio_max_hist": 304.63, "unidades_hist": 156, "precio_recomendado": 257.9, "accion": "MANTENER", "n_trans": 133}, {"sku": 50125168, "nombre": "ARCHIVO EXPANDIBLE 13DIV PLATA AZUL STUK", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -0.771, "p_value": 0.2514, "clasificacion": "Inelastico", "costo": 80.24, "precio_actual": 141.87, "precio_min_hist": 85.78, "precio_max_hist": 184.26, "unidades_hist": 32, "precio_recomendado": 156.05, "accion": "SUBIR_DIRECCIONAL", "n_trans": 32}, {"sku": 50086322, "nombre": "ARCHIVERO ABATIBLE C/TRANS PZA", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -6.496, "p_value": 0.0984, "clasificacion": "ELASTICO", "costo": 40.24, "precio_actual": 120.79, "precio_min_hist": 83.88, "precio_max_hist": 134.26, "unidades_hist": 85, "precio_recomendado": 47.56, "accion": "BAJAR", "n_trans": 53}, {"sku": 50062186, "nombre": "ARCHIVERO EXPAND NG TC 13D OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.29, "p_value": 0.7384, "clasificacion": "Sin_reaccion", "costo": 48.8, "precio_actual": 138.52, "precio_min_hist": 89.74, "precio_max_hist": 150.86, "unidades_hist": 55, "precio_recomendado": 138.52, "accion": "MANTENER", "n_trans": 47}, {"sku": 50066250, "nombre": "ARCHIVERO EXP T/C 13DIV CLRS", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": 3.662, "p_value": 0.0005, "clasificacion": "Sin_reaccion", "costo": 91.86, "precio_actual": 179.83, "precio_min_hist": 123.71, "precio_max_hist": 199.54, "unidades_hist": 65, "precio_recomendado": 179.83, "accion": "INVESTIGAR", "n_trans": 60}, {"sku": 50061600, "nombre": "ARCHIVERO EXPANDIBLE 13DIV OFI", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": 5.465, "p_value": 0.0015, "clasificacion": "Sin_reaccion", "costo": 131.2, "precio_actual": 174.08, "precio_min_hist": 121.9, "precio_max_hist": 187.04, "unidades_hist": 38, "precio_recomendado": 174.08, "accion": "INVESTIGAR", "n_trans": 34}, {"sku": 50066347, "nombre": "ARCHIVERO EXPA 13D TC C/LIGA N", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -4.263, "p_value": 0.263, "clasificacion": "Elastico_NS", "costo": 75.11, "precio_actual": 153.78, "precio_min_hist": 108.02, "precio_max_hist": 175.0, "unidades_hist": 95, "precio_recomendado": 153.78, "accion": "MANTENER", "n_trans": 86}, {"sku": 50125508, "nombre": "ARCHIVERO EXP STUK BUTTERFLY 8DIV", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -10.564, "p_value": 0.0, "clasificacion": "ELASTICO", "costo": 39.38, "precio_actual": 77.46, "precio_min_hist": 46.98, "precio_max_hist": 93.97, "unidades_hist": 41, "precio_recomendado": 43.5, "accion": "BAJAR", "n_trans": 37}, {"sku": 50062265, "nombre": "ARCHIVERO PORT EXPAN NG 21D OM", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": null, "p_value": null, "clasificacion": "Sin datos", "costo": 92.57, "precio_actual": 189.28, "precio_min_hist": 180.17, "precio_max_hist": 202.78, "unidades_hist": 82, "precio_recomendado": 189.28, "accion": "MANTENER", "n_trans": 69}, {"sku": 50061989, "nombre": "ARCHIVERO EXPAN TC 13DIV OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.336, "p_value": 0.8693, "clasificacion": "Sin_reaccion", "costo": 62.05, "precio_actual": 151.85, "precio_min_hist": 105.6, "precio_max_hist": 167.24, "unidades_hist": 107, "precio_recomendado": 151.85, "accion": "MANTENER", "n_trans": 96}, {"sku": 50040889, "nombre": "ARCHIVO EXPAND TC 12DIV NEGRO", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": 3.002, "p_value": 0.336, "clasificacion": "Sin_reaccion", "costo": 143.04, "precio_actual": 206.35, "precio_min_hist": 141.81, "precio_max_hist": 230.56, "unidades_hist": 39, "precio_recomendado": 206.35, "accion": "MANTENER", "n_trans": 38}, {"sku": 50116435, "nombre": "ARCHIVERO EXPANDIBLE ECO STUK", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -0.322, "p_value": 0.4027, "clasificacion": "Inelastico", "costo": 96.52, "precio_actual": 187.3, "precio_min_hist": 89.31, "precio_max_hist": 240.52, "unidades_hist": 44, "precio_recomendado": 206.03, "accion": "SUBIR_DIRECCIONAL", "n_trans": 37}, {"sku": 50062262, "nombre": "ARCHIVERO EXPA CT 7DV CLRS OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.837, "p_value": 0.3632, "clasificacion": "Sin_reaccion", "costo": 35.88, "precio_actual": 98.56, "precio_min_hist": 65.78, "precio_max_hist": 111.21, "unidades_hist": 74, "precio_recomendado": 98.56, "accion": "MANTENER", "n_trans": 68}, {"sku": 50125485, "nombre": "ARCHIVERO EXP STUK SMILEY 8DIV", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": 1.6, "p_value": 0.1098, "clasificacion": "Sin_reaccion", "costo": 39.38, "precio_actual": 79.27, "precio_min_hist": 46.98, "precio_max_hist": 100.93, "unidades_hist": 47, "precio_recomendado": 79.27, "accion": "MANTENER", "n_trans": 44}, {"sku": 50125170, "nombre": "ARCHIVO EXPANDIBLE 13DIV AZUL STUK", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -2.05, "p_value": 0.6146, "clasificacion": "Elastico_NS", "costo": 69.17, "precio_actual": 91.19, "precio_min_hist": 65.77, "precio_max_hist": 100.93, "unidades_hist": 39, "precio_recomendado": 91.19, "accion": "MANTENER", "n_trans": 36}];
+
+// === Estado global ===
+let currentSku = null;
+let chart = null;
+
+// === Helpers ===
+const fmt$ = n => '$' + Math.round(n).toLocaleString('es-MX');
+const fmt$dec = n => '$' + n.toFixed(2);
+const fmtPct = n => (n>=0?'+':'') + n.toFixed(1) + '%';
+const fmtNum = n => Math.round(n).toLocaleString('es-MX');
+
+function simulate(sku, deltaPct) {
+  const p_new = sku.precio_actual * (1 + deltaPct/100);
+  const q_new = sku.beta !== null
+    ? sku.unidades_hist * Math.pow(p_new / sku.precio_actual, sku.beta)
+    : sku.unidades_hist;
+  const ingreso = p_new * q_new;
+  const margen = sku.costo ? (p_new - sku.costo) * q_new : null;
+  const ingreso_act = sku.precio_actual * sku.unidades_hist;
+  const margen_act = sku.costo ? (sku.precio_actual - sku.costo) * sku.unidades_hist : null;
+  return {
+    precio_nuevo: p_new,
+    unidades: Math.max(q_new, 0),
+    ingreso, margen,
+    delta_unidades_pct: ((q_new / sku.unidades_hist) - 1) * 100,
+    delta_ingreso_pct: ((ingreso / ingreso_act) - 1) * 100,
+    delta_margen_pct: margen_act ? ((margen / margen_act) - 1) * 100 : 0,
+    ingreso_act, margen_act
+  };
+}
+
+function getClassLabel(c) {
+  return {
+    'ELASTICO': 'Elástico ★',
+    'Elastico_NS': 'Elástico n.s.',
+    'Inelastico': 'Inelástico',
+    'Sin_reaccion': 'Sin reacción',
+    'Sin datos': 'Sin datos'
+  }[c] || c;
+}
+
+function getClassBadge(c) {
+  return {
+    'ELASTICO': 'badge-elastico',
+    'Elastico_NS': 'badge-elastico-ns',
+    'Inelastico': 'badge-inelastico',
+    'Sin_reaccion': 'badge-sin-reaccion',
+    'Sin datos': 'badge-sin-datos'
+  }[c] || 'badge-sin-datos';
+}
+
+function getActionLabel(a) {
+  return {
+    'BAJAR': 'BAJAR precio',
+    'SUBIR': 'SUBIR precio',
+    'SUBIR_DIRECCIONAL': 'SUBIR (direccional)',
+    'MANTENER': 'MANTENER',
+    'INVESTIGAR': 'INVESTIGAR'
+  }[a] || a;
+}
+
+function getActionBadge(a) {
+  return {
+    'BAJAR': 'action-bajar',
+    'SUBIR': 'action-subir',
+    'SUBIR_DIRECCIONAL': 'action-subir-direc',
+    'MANTENER': 'action-mantener',
+    'INVESTIGAR': 'action-investigar'
+  }[a] || 'action-mantener';
+}
+
+// === Llenar select ===
+function populateSelect(filterAction='') {
+  const sel = document.getElementById('sku-select');
+  sel.innerHTML = '';
+  const filtered = filterAction
+    ? SKUS_DATA.filter(s => s.accion === filterAction)
+    : SKUS_DATA;
+  // Ordenar: primero los elásticos confirmados, luego por beta
+  const sorted = [...filtered].sort((a, b) => {
+    const aPrior = a.clasificacion === 'ELASTICO' ? 0 : 1;
+    const bPrior = b.clasificacion === 'ELASTICO' ? 0 : 1;
+    if (aPrior !== bPrior) return aPrior - bPrior;
+    return (a.beta ?? 999) - (b.beta ?? 999);
+  });
+  sorted.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.sku;
+    const betaStr = s.beta !== null ? s.beta.toFixed(2) : 'NA';
+    opt.textContent = `${s.sku} — ${s.nombre} (β=${betaStr})`;
+    sel.appendChild(opt);
+  });
+  if (sorted.length > 0) {
+    currentSku = sorted[0];
+    sel.value = currentSku.sku;
+    renderAll();
+  }
+}
+
+// === Render información del SKU ===
+function renderSkuInfo() {
+  if (!currentSku) return;
+  const s = currentSku;
+  const actionClass = getActionBadge(s.accion);
+  let actionIcon = '→';
+  if (s.accion === 'BAJAR') actionIcon = '↓';
+  else if (s.accion === 'SUBIR' || s.accion === 'SUBIR_DIRECCIONAL') actionIcon = '↑';
+  else if (s.accion === 'MANTENER') actionIcon = '=';
+  else if (s.accion === 'INVESTIGAR') actionIcon = '?';
+
+  const costoStr = s.costo !== null ? fmt$dec(s.costo) : 'no disponible';
+  const pStr = s.p_value !== null ? `p = ${s.p_value.toFixed(4)}` : '';
+  const betaStr = s.beta !== null ? s.beta.toFixed(2) : 'NA';
+
+  document.getElementById('sku-info').innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:start; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div style="font-size:13px; color:var(--text-secondary);">SKU ${s.sku} · ${s.clase} · ${s.tipo_marca}</div>
+        <div style="font-size:18px; font-weight:500; margin-top:4px;">${s.nombre}</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <span class="badge ${getClassBadge(s.clasificacion)}">${getClassLabel(s.clasificacion)}</span>
+        <span class="badge ${actionClass}">${actionIcon} ${getActionLabel(s.accion)}</span>
+      </div>
+    </div>
+
+    <div class="metric-grid" style="margin-top:16px;">
+      <div class="metric">
+        <div class="metric-label">Elasticidad β</div>
+        <div class="metric-value">${betaStr}</div>
+        <div class="metric-sub">${pStr}</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Precio actual</div>
+        <div class="metric-value">${fmt$dec(s.precio_actual)}</div>
+        <div class="metric-sub">histórico</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Costo unitario</div>
+        <div class="metric-value">${costoStr}</div>
+        <div class="metric-sub">margen ${s.costo ? Math.round((s.precio_actual-s.costo)/s.precio_actual*100) : 0}%</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Precio recomendado</div>
+        <div class="metric-value">${fmt$dec(s.precio_recomendado)}</div>
+        <div class="metric-sub">${s.precio_recomendado === s.precio_actual ? 'mantener' : (((s.precio_recomendado/s.precio_actual)-1)*100).toFixed(1)+'%'}</div>
+      </div>
+    </div>
+
+    <div style="font-size:12px; color:var(--text-tertiary); margin-top:12px;">
+      Histórico: ${s.unidades_hist.toLocaleString('es-MX')} unidades vendidas · rango de precio cobrado: ${fmt$dec(s.precio_min_hist)} – ${fmt$dec(s.precio_max_hist)} · ${s.n_trans} transacciones
+    </div>
+  `;
+}
+
+// === Render simulación ===
+function renderSimulation() {
+  if (!currentSku) return;
+  const delta = parseFloat(document.getElementById('price-slider').value);
+  document.getElementById('price-delta').textContent = (delta>=0?'+':'') + delta + '%';
+
+  const sim = simulate(currentSku, delta);
+
+  document.getElementById('m-precio').textContent = fmt$dec(sim.precio_nuevo);
+  document.getElementById('m-precio-sub').textContent = `precio actual ${fmt$dec(currentSku.precio_actual)}`;
+
+  document.getElementById('m-unidades').textContent = fmtNum(sim.unidades);
+  const u_sub = document.getElementById('m-unidades-sub');
+  u_sub.textContent = fmtPct(sim.delta_unidades_pct) + ' vs histórico';
+  u_sub.className = 'metric-sub ' + (sim.delta_unidades_pct>=0?'metric-positive':'metric-negative');
+
+  document.getElementById('m-ingreso').textContent = fmt$(sim.ingreso);
+  const i_sub = document.getElementById('m-ingreso-sub');
+  i_sub.textContent = fmtPct(sim.delta_ingreso_pct) + ' vs ' + fmt$(sim.ingreso_act);
+  i_sub.className = 'metric-sub ' + (sim.delta_ingreso_pct>=0?'metric-positive':'metric-negative');
+
+  if (sim.margen !== null) {
+    document.getElementById('m-margen').textContent = fmt$(sim.margen);
+    const m_sub = document.getElementById('m-margen-sub');
+    m_sub.textContent = fmtPct(sim.delta_margen_pct) + ' vs ' + fmt$(sim.margen_act);
+    m_sub.className = 'metric-sub ' + (sim.delta_margen_pct>=0?'metric-positive':'metric-negative');
+  } else {
+    document.getElementById('m-margen').textContent = 'NA';
+    document.getElementById('m-margen-sub').textContent = 'sin costo disponible';
+  }
+
+  updateChart(delta);
+}
+
+// === Render escenarios del profe ===
+function renderEscenarios() {
+  if (!currentSku) return;
+  const tbody = document.getElementById('escenarios-body');
+  tbody.innerHTML = '';
+  const escenarios = [-10, -5, 0, 5, 10];
+  const sliderVal = parseInt(document.getElementById('price-slider').value);
+  escenarios.forEach(ch => {
+    const sim = simulate(currentSku, ch);
+    const tr = document.createElement('tr');
+    if (ch === sliderVal) tr.className = 'current';
+    tr.innerHTML = `
+      <td>${ch>=0?'+':''}${ch}%</td>
+      <td class="numeric">${fmt$dec(sim.precio_nuevo)}</td>
+      <td class="numeric">${fmtNum(sim.unidades)}</td>
+      <td class="numeric">${fmt$(sim.ingreso)}</td>
+      <td class="numeric">${sim.margen!==null ? fmt$(sim.margen) : '—'}</td>
+      <td class="numeric ${sim.delta_ingreso_pct>=0?'metric-positive':'metric-negative'}">${fmtPct(sim.delta_ingreso_pct)}</td>
+      <td class="numeric ${sim.delta_margen_pct>=0?'metric-positive':'metric-negative'}">${currentSku.costo ? fmtPct(sim.delta_margen_pct) : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// === Chart ===
+function updateChart(currentDelta) {
+  if (!currentSku) return;
+  const points = [];
+  for (let ch = -30; ch <= 30; ch++) {
+    const sim = simulate(currentSku, ch);
+    points.push({
+      ch,
+      d_ingreso: sim.delta_ingreso_pct,
+      d_margen: sim.delta_margen_pct
+    });
+  }
+  const labels = points.map(p => p.ch + '%');
+  const dataIng = points.map(p => p.d_ingreso);
+  const dataMar = points.map(p => p.d_margen);
+
+  if (chart) chart.destroy();
+  const ctx = document.getElementById('chart-sim').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Δ Ingreso %',
+          data: dataIng,
+          borderColor: '#0F6E56',
+          backgroundColor: 'rgba(15, 110, 86, 0.08)',
+          borderWidth: 2,
+          tension: 0.2,
+          pointRadius: 0,
+          pointHoverRadius: 5
+        },
+        {
+          label: 'Δ Margen %',
+          data: currentSku.costo ? dataMar : [],
+          borderColor: '#A32D2D',
+          backgroundColor: 'rgba(163, 45, 45, 0.08)',
+          borderWidth: 2,
+          tension: 0.2,
+          pointRadius: 0,
+          pointHoverRadius: 5
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { position: 'top', align: 'end', labels: { font: { size: 12 }, boxWidth: 14 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.label + ': ' + (ctx.parsed.y>=0?'+':'') + ctx.parsed.y.toFixed(1) + '%'
+          }
+        },
+        annotation: {}
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Cambio de precio %', font: { size: 12 } },
+          grid: { display: false },
+          ticks: { autoSkip: true, maxTicksLimit: 13, font: { size: 11 } }
+        },
+        y: {
+          title: { display: true, text: 'Δ vs histórico %', font: { size: 12 } },
+          ticks: { font: { size: 11 }, callback: v => (v>=0?'+':'') + v + '%' },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        }
+      }
+    },
+    plugins: [{
+      id: 'verticalLine',
+      afterDatasetsDraw: (chart) => {
+        const ctx = chart.ctx;
+        const idx = currentDelta + 30; // de -30 a +30, índice 0..60
+        if (idx < 0 || idx >= chart.scales.x.ticks.length+1) return;
+        const x = chart.scales.x.getPixelForValue(idx);
+        const top = chart.scales.y.top;
+        const bot = chart.scales.y.bottom;
+        ctx.save();
+        ctx.strokeStyle = '#185FA5';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bot);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+// === Render summary stats ===
+function renderSummaryStats() {
+  const counts = {};
+  SKUS_DATA.forEach(s => {
+    counts[s.clasificacion] = (counts[s.clasificacion] || 0) + 1;
+  });
+  const orden = ['ELASTICO', 'Elastico_NS', 'Inelastico', 'Sin_reaccion', 'Sin datos'];
+  const html = orden.filter(c => counts[c]).map(c => `
+    <div class="summary-card">
+      <div class="num">${counts[c]}</div>
+      <div class="lbl">${getClassLabel(c)}</div>
+    </div>
+  `).join('');
+  document.getElementById('summary-stats').innerHTML = html;
+}
+
+// === Render tabla maestra ===
+function renderTabla() {
+  const filtroAccion = document.getElementById('filtro-accion-tabla').value;
+  const filtroClase = document.getElementById('filtro-clase-tabla').value;
+  const busqueda = document.getElementById('buscar-tabla').value.toLowerCase();
+
+  let filtrados = SKUS_DATA;
+  if (filtroAccion) filtrados = filtrados.filter(s => s.accion === filtroAccion);
+  if (filtroClase) filtrados = filtrados.filter(s => s.clasificacion === filtroClase);
+  if (busqueda) filtrados = filtrados.filter(s =>
+    s.nombre.toLowerCase().includes(busqueda) ||
+    String(s.sku).includes(busqueda)
+  );
+
+  filtrados.sort((a, b) => (a.beta ?? 999) - (b.beta ?? 999));
+
+  const html = filtrados.map(s => {
+    const betaStr = s.beta !== null ? s.beta.toFixed(2) : 'NA';
+    const cambioPct = s.precio_recomendado === s.precio_actual ? '' :
+                      ` (${(((s.precio_recomendado/s.precio_actual)-1)*100).toFixed(1)}%)`;
+    return `
+      <tr style="cursor:pointer;" onclick="selectSkuFromTable(${s.sku})">
+        <td>${s.sku}</td>
+        <td>${s.nombre}</td>
+        <td><span class="badge ${getClassBadge(s.clasificacion)}">${getClassLabel(s.clasificacion)}</span></td>
+        <td class="numeric">${betaStr}</td>
+        <td class="numeric">${fmt$dec(s.precio_actual)}</td>
+        <td class="numeric">${fmt$dec(s.precio_recomendado)}${cambioPct}</td>
+        <td><span class="badge ${getActionBadge(s.accion)}">${getActionLabel(s.accion)}</span></td>
+      </tr>
+    `;
+  }).join('');
+
+  document.getElementById('tabla-body').innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-tertiary);">No hay SKUs con esos filtros</td></tr>';
+}
+
+function selectSkuFromTable(sku) {
+  const found = SKUS_DATA.find(s => s.sku === sku);
+  if (found) {
+    currentSku = found;
+    document.getElementById('sku-select').value = sku;
+    document.querySelector('[data-tab="simulador"]').click();
+    renderAll();
+  }
+}
+
+function renderAll() {
+  renderSkuInfo();
+  renderSimulation();
+  renderEscenarios();
+}
+
+function setSlider(val) {
+  document.getElementById('price-slider').value = val;
+  renderSimulation();
+  renderEscenarios();
+}
+
+function setSliderToOptimal() {
+  if (!currentSku) return;
+  const delta = ((currentSku.precio_recomendado / currentSku.precio_actual) - 1) * 100;
+  setSlider(Math.max(-30, Math.min(30, Math.round(delta))));
+}
+
+// === Event listeners ===
+document.getElementById('sku-select').addEventListener('change', (e) => {
+  const sku = parseInt(e.target.value);
+  currentSku = SKUS_DATA.find(s => s.sku === sku);
+  renderAll();
+});
+
+document.getElementById('filter-action').addEventListener('change', (e) => {
+  populateSelect(e.target.value);
+});
+
+document.getElementById('price-slider').addEventListener('input', () => {
+  renderSimulation();
+  renderEscenarios();
+});
+
+document.getElementById('filtro-accion-tabla').addEventListener('change', renderTabla);
+document.getElementById('filtro-clase-tabla').addEventListener('change', renderTabla);
+document.getElementById('buscar-tabla').addEventListener('input', renderTabla);
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+  });
+});
+
+// === Init ===
+populateSelect();
+renderSummaryStats();
+renderTabla();
+</script>
+
+</body>
+</html>
