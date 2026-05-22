@@ -1,0 +1,4 @@
+﻿sku,unidades,venta_neta,fecha,precio,costo,departamento,tienda,tipo_marca,promocion,elasticidad
+1001,12,1140.0,2024-01-15,95.0,58.0,PAPEL,T-001,Marca Propia,,
+1001,18,1620.0,2024-02-15,90.0,58.0,PAPEL,T-001,Marca Propia,3x2,
+1002,30,870.0,2024-01-15,29.0,14.5,ETIQUETAS,T-001,Marca Externa,,-1.6
