@@ -103,6 +103,20 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .summary-card .num { font-size: 22px; font-weight: 500; }
 .summary-card .lbl { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 @media (max-width: 700px) { .cascade-filters .sku-sel { min-width: 100%; } .chart-wrap { height: 240px; } body { padding: 12px; } }
+.plan-chips { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0; }
+.plan-chip { padding: 12px 18px; border-radius: var(--radius-md); cursor: pointer; border: 2px solid transparent; text-align: center; min-width: 110px; user-select: none; }
+.plan-chip .chip-num { font-size: 26px; font-weight: 500; line-height: 1.1; }
+.plan-chip .chip-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+.plan-chip:hover { opacity: 0.75; }
+.plan-chip.active { border-color: currentColor; }
+.chip-bajar     { background: var(--c-blue-50);   color: var(--c-blue-800); }
+.chip-subir     { background: var(--c-teal-50);   color: var(--c-teal-800); }
+.chip-subir-dir { background: var(--c-amber-50);  color: var(--c-amber-800); }
+.chip-mantener  { background: var(--c-gray-50);   color: var(--c-gray-600); }
+.chip-investigar{ background: var(--c-purple-50); color: var(--c-purple-800); }
+.chip-todos     { background: var(--bg-secondary); color: var(--text-secondary); font-size: 13px; display:flex; align-items:center; justify-content:center; }
+.badge-alerta   { background: var(--c-amber-50); color: var(--c-amber-800); font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
+.plan-price-arrow { color: var(--text-tertiary); margin: 0 4px; }
 </style>
 </head>
 <body>
@@ -114,6 +128,7 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
   <button class="tab active" data-tab="simulador">Simulador por SKU</button>
   <button class="tab" data-tab="tabla">Tabla ejecutiva</button>
   <button class="tab" data-tab="metodologia">Metodología</button>
+  <button class="tab" data-tab="plan">Plan de Acción</button>
 </div>
 
 <!-- TAB 1: SIMULADOR -->
@@ -317,6 +332,53 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
     </table>
     <div class="note" style="margin-top:24px;">
       <strong>Nota:</strong> los márgenes son direccionales. La base de costos presenta inconsistencias documentadas. Validar con prueba A/B antes de rollout.
+    </div>
+  </div>
+</div>
+
+<!-- TAB 4: PLAN DE ACCIÓN -->
+<div class="tab-panel" id="tab-plan">
+
+  <div class="card">
+    <h3>Filtros</h3>
+    <div class="filter-row">
+      <label>Departamento:
+        <select id="plan-dept"><option value="">Todos</option></select>
+      </label>
+      <label>Mes (beta):
+        <select id="plan-mes"><option value="">Global (28 meses)</option></select>
+      </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Resumen por acción — haz clic para filtrar</h3>
+    <div id="plan-chips" class="plan-chips"></div>
+  </div>
+
+  <div class="card">
+    <h3>Plan de acción por SKU</h3>
+    <p style="font-size:12px;color:var(--text-tertiary);margin:0 0 12px;">
+      Ingreso y margen esperados se calculan al precio recomendado usando la β del mes seleccionado (o global si no hay dato mensual).
+      Haz clic en una fila para abrir el SKU en el Simulador.
+    </p>
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Acción recomendada</th>
+            <th>β utilizada</th>
+            <th class="numeric">Precio actual</th>
+            <th class="numeric">Precio recomendado</th>
+            <th class="numeric">Δ precio</th>
+            <th class="numeric">Ingreso esperado</th>
+            <th class="numeric">Margen esperado</th>
+            <th class="numeric">Score</th>
+          </tr>
+        </thead>
+        <tbody id="plan-body"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -773,6 +835,123 @@ function selectSkuFromTable(sku) {
   renderAll();
 }
 
+// ─── Plan de Acción ───────────────────────────────────────────────────────
+let planFiltroAccion = '';
+let planFiltroDept   = '';
+let planFiltroMes    = '';
+
+const CHIP_CONFIG = [
+  { accion: 'BAJAR',             cls: 'chip-bajar',      icon: '↓', label: 'BAJAR' },
+  { accion: 'SUBIR',             cls: 'chip-subir',      icon: '↑', label: 'SUBIR' },
+  { accion: 'SUBIR_DIRECCIONAL', cls: 'chip-subir-dir',  icon: '↑', label: 'SUBIR (dir.)' },
+  { accion: 'MANTENER',          cls: 'chip-mantener',   icon: '=', label: 'MANTENER' },
+  { accion: 'INVESTIGAR',        cls: 'chip-investigar', icon: '?', label: 'INVESTIGAR' },
+];
+const ACCION_ORDER = { BAJAR: 0, SUBIR: 1, SUBIR_DIRECCIONAL: 2, MANTENER: 3, INVESTIGAR: 4 };
+
+function initPlanFilters() {
+  const depts = [...new Set(SKUS.map(s => s.departamento))].sort();
+  const deptEl = document.getElementById('plan-dept');
+  depts.forEach(d => {
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d;
+    deptEl.appendChild(o);
+  });
+  const mesEl = document.getElementById('plan-mes');
+  MESES_DISPONIBLES.forEach(m => {
+    const [y, mo] = m.split('-');
+    const lbl = new Date(+y, +mo - 1, 1).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+    const o = document.createElement('option');
+    o.value = m;
+    o.textContent = lbl.charAt(0).toUpperCase() + lbl.slice(1);
+    mesEl.appendChild(o);
+  });
+}
+
+function computeRecomendacion(sku, mes) {
+  const deltaPct = ((sku.precio_recomendado / sku.precio_actual) - 1) * 100;
+  const rec = simulate(sku, deltaPct, mes || '');
+  let alerta = false;
+  if (mes && BETAS_MENSUAL.length > 0 && sku.beta !== null) {
+    const mb = BETAS_MENSUAL.find(b => b.sku === sku.sku && b.mes === mes);
+    if (mb && Math.sign(mb.beta) !== Math.sign(sku.beta)) alerta = true;
+  }
+  return { ...rec, alerta };
+}
+
+function renderChipsAccion(baseList) {
+  const counts = {};
+  baseList.forEach(s => { counts[s.accion] = (counts[s.accion] || 0) + 1; });
+  const chips = CHIP_CONFIG.map(cfg => {
+    const n = counts[cfg.accion] || 0;
+    const active = planFiltroAccion === cfg.accion ? ' active' : '';
+    return `<div class="plan-chip ${cfg.cls}${active}" onclick="togglePlanChip('${cfg.accion}')">
+      <div class="chip-num">${n}</div>
+      <div class="chip-lbl">${cfg.icon} ${cfg.label}</div>
+    </div>`;
+  }).join('');
+  const todosActive = planFiltroAccion === '' ? ' active' : '';
+  document.getElementById('plan-chips').innerHTML = chips +
+    `<div class="plan-chip chip-todos${todosActive}" onclick="togglePlanChip('')">Todos<br><strong>${baseList.length}</strong></div>`;
+}
+
+function togglePlanChip(accion) {
+  planFiltroAccion = planFiltroAccion === accion ? '' : accion;
+  renderPlanDeAccion();
+}
+
+function renderPlanDeAccion() {
+  let base = SKUS;
+  if (planFiltroDept) base = base.filter(s => s.departamento === planFiltroDept);
+
+  renderChipsAccion(base);
+
+  let list = planFiltroAccion ? base.filter(s => s.accion === planFiltroAccion) : base;
+  list = [...list].sort((a, b) => (ACCION_ORDER[a.accion] ?? 9) - (ACCION_ORDER[b.accion] ?? 9));
+
+  const mes = planFiltroMes;
+  const html = list.map(s => {
+    const rec = computeRecomendacion(s, mes);
+    const betaStr  = rec.beta_usado !== null ? rec.beta_usado.toFixed(3) : 'NA';
+    const betaSrc  = mes && BETAS_MENSUAL.length && rec.beta_usado !== s.beta ? `mes ${mes}` : 'global';
+    const dPrecio  = ((s.precio_recomendado / s.precio_actual) - 1) * 100;
+    const dPStr    = Math.abs(dPrecio) < 0.05 ? '—' : fmtPct(dPrecio);
+    const dPCls    = dPrecio > 0 ? 'metric-positive' : dPrecio < 0 ? 'metric-negative' : '';
+    const margenStr= rec.margen !== null ? fmt$(rec.margen) : '—';
+    const alerta   = rec.alerta ? '<span class="badge-alerta">⚠ revisar</span>' : '';
+
+    return `<tr style="cursor:pointer;" onclick="selectSkuFromPlan(${s.sku})">
+      <td>
+        <div style="font-weight:500;font-size:13px;">${s.nombre}</div>
+        <div style="font-size:11px;color:var(--text-secondary);">${s.sku} · ${s.departamento}</div>
+      </td>
+      <td><span class="badge ${getActionBadge(s.accion)}">${getActionLabel(s.accion)}</span>${alerta}</td>
+      <td style="font-size:12px;">
+        <span style="font-variant-numeric:tabular-nums;">${betaStr}</span>
+        <span style="color:var(--text-tertiary);font-size:11px;"> ${betaSrc}</span>
+      </td>
+      <td class="numeric">${fmt$dec(s.precio_actual)}</td>
+      <td class="numeric" style="font-weight:500;">${fmt$dec(s.precio_recomendado)}</td>
+      <td class="numeric ${dPCls}">${dPStr}</td>
+      <td class="numeric">${fmt$(rec.ingreso)}</td>
+      <td class="numeric">${margenStr}</td>
+      <td class="numeric">${rec.score.toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('plan-body').innerHTML = html ||
+    '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-tertiary);">Sin resultados para los filtros seleccionados</td></tr>';
+}
+
+function selectSkuFromPlan(sku) {
+  const found = SKUS.find(s => s.sku === sku);
+  if (!found) return;
+  currentSku = found;
+  document.getElementById('sku-select').value = sku;
+  document.querySelector('[data-tab="simulador"]').click();
+  renderAll();
+}
+
 // ─── Render all ────────────────────────────────────────────────────────────
 function renderAll() {
   renderSkuInfo();
@@ -813,6 +992,8 @@ document.getElementById('price-slider').addEventListener('input', () => {
   renderSimulation();
   renderEscenarios();
 });
+document.getElementById('plan-dept').addEventListener('change', e => { planFiltroDept = e.target.value; renderPlanDeAccion(); });
+document.getElementById('plan-mes').addEventListener('change', e => { planFiltroMes = e.target.value; renderPlanDeAccion(); });
 document.getElementById('filtro-dept-tabla').addEventListener('change', renderTabla);
 document.getElementById('filtro-accion-tabla').addEventListener('change', renderTabla);
 document.getElementById('filtro-clase-tabla').addEventListener('change', renderTabla);
@@ -828,8 +1009,10 @@ document.querySelectorAll('.tab').forEach(t => {
 
 // ─── Init ──────────────────────────────────────────────────────────────────
 initFilters();
+initPlanFilters();
 renderSummaryStats();
 renderTabla();
+renderPlanDeAccion();
 </script>
 </body>
 </html>
