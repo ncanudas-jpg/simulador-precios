@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Simulador de Precios — OfficeMax Archivo y Accesorios</title>
+<title>Dynamic Pricing Analyzer</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 :root {
   --bg-primary: #ffffff;
@@ -21,26 +22,15 @@
   --c-red-50: #FCEBEB; --c-red-600: #A32D2D; --c-red-800: #791F1F;
   --c-purple-50: #EEEDFE; --c-purple-600: #534AB7; --c-purple-800: #3C3489;
   --c-gray-50: #F1EFE8; --c-gray-600: #5F5E5A;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --c-green-50: #E2F5E8; --c-green-600: #1A6B35; --c-green-800: #114524;
+  --radius-md: 8px; --radius-lg: 12px;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 * { box-sizing: border-box; }
-body {
-  margin: 0;
-  padding: 24px;
-  background: var(--bg-tertiary);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--text-primary);
-  max-width: 1280px;
-  margin-left: auto;
-  margin-right: auto;
-}
+body { margin: 0; padding: 24px; background: var(--bg-tertiary); font-family: var(--font-sans); font-size: 15px; line-height: 1.6; color: var(--text-primary); max-width: 1280px; margin-left: auto; margin-right: auto; }
 h1 { font-size: 24px; font-weight: 500; margin: 0 0 4px; }
 h2 { font-size: 18px; font-weight: 500; margin: 24px 0 12px; }
-h3 { font-size: 14px; font-weight: 500; margin: 0 0 8px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+h3 { font-size: 13px; font-weight: 500; margin: 0 0 8px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 24px; }
 .card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 16px 0; }
@@ -50,352 +40,524 @@ h3 { font-size: 14px; font-weight: 500; margin: 0 0 8px; color: var(--text-secon
 .metric-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
 .metric-positive { color: var(--c-teal-800); }
 .metric-negative { color: var(--c-red-800); }
-.controls-row { display: flex; align-items: center; gap: 16px; margin: 16px 0; flex-wrap: wrap; }
-select, input[type="text"], input[type="number"] {
-  padding: 8px 12px; border: 0.5px solid var(--border); border-radius: var(--radius-md);
-  font-size: 14px; font-family: inherit; background: var(--bg-primary); height: 36px;
-}
-input[type="text"]:focus, select:focus { outline: none; border-color: var(--c-blue-600); box-shadow: 0 0 0 2px rgba(24,95,165,0.2); }
+select, input[type="text"] { padding: 8px 12px; border: 0.5px solid var(--border); border-radius: var(--radius-md); font-size: 14px; font-family: inherit; background: var(--bg-primary); height: 36px; }
+select:focus, input[type="text"]:focus { outline: none; border-color: var(--c-blue-600); box-shadow: 0 0 0 2px rgba(24,95,165,0.15); }
 input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: var(--bg-secondary); border-radius: 2px; outline: none; }
 input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--c-blue-600); cursor: pointer; }
 input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--c-blue-600); cursor: pointer; border: none; }
-.badge { display: inline-block; padding: 4px 10px; border-radius: var(--radius-md); font-size: 12px; font-weight: 500; }
-.badge-elastico { background: var(--c-red-50); color: var(--c-red-800); }
-.badge-inelastico { background: var(--c-amber-50); color: var(--c-amber-800); }
-.badge-sin-reaccion { background: var(--c-gray-50); color: var(--c-gray-600); }
-.badge-elastico-ns { background: var(--c-purple-50); color: var(--c-purple-800); }
-.badge-sin-datos { background: var(--c-gray-50); color: var(--c-gray-600); }
-.action-bajar { background: var(--c-blue-50); color: var(--c-blue-800); }
-.action-subir { background: var(--c-teal-50); color: var(--c-teal-800); }
-.action-subir-direc { background: var(--c-amber-50); color: var(--c-amber-800); }
-.action-mantener { background: var(--c-gray-50); color: var(--c-gray-600); }
-.action-investigar { background: var(--c-purple-50); color: var(--c-purple-800); }
-.chart-wrap { position: relative; height: 280px; margin: 20px 0 8px; }
+.badge { display: inline-block; padding: 3px 9px; border-radius: var(--radius-md); font-size: 12px; font-weight: 500; }
+.badge-elastico      { background: var(--c-red-50);    color: var(--c-red-800); }
+.badge-elastico-ns   { background: var(--c-purple-50); color: var(--c-purple-800); }
+.badge-inelastico    { background: var(--c-amber-50);  color: var(--c-amber-800); }
+.badge-sin-reaccion  { background: var(--c-gray-50);   color: var(--c-gray-600); }
+.badge-sin-datos     { background: var(--c-gray-50);   color: var(--c-gray-600); }
+.action-bajar        { background: var(--c-blue-50);   color: var(--c-blue-800); }
+.action-subir        { background: var(--c-teal-50);   color: var(--c-teal-800); }
+.action-subir-direc  { background: var(--c-amber-50);  color: var(--c-amber-800); }
+.action-mantener     { background: var(--c-gray-50);   color: var(--c-gray-600); }
+.action-investigar   { background: var(--c-purple-50); color: var(--c-purple-800); }
+.action-explorar     { background: var(--c-amber-50);  color: var(--c-amber-800); }
+.chart-wrap      { position: relative; height: 280px; margin: 20px 0 8px; }
 .beta-chart-wrap { position: relative; height: 220px; margin: 16px 0 8px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
 th { text-align: left; font-weight: 500; padding: 8px 10px; border-bottom: 0.5px solid var(--border-strong); color: var(--text-secondary); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
 td { padding: 8px 10px; border-bottom: 0.5px solid var(--border); }
 td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
-.scenario-table tr.current td { background: var(--c-blue-50); font-weight: 500; }
-.scenario-table tr.best-scenario td { background: var(--c-teal-50); }
-.scenario-table tr.best-scenario td:first-child { border-left: 3px solid var(--c-teal-600); padding-left: 7px; }
-.scenario-table tr.current.best-scenario td { background: var(--c-teal-50); font-weight: 500; }
+.scenario-table tr.current td    { background: var(--c-blue-50); font-weight: 500; }
+.scenario-table tr.best-score td { background: var(--c-teal-50); }
+.scenario-table tr.best-score td:first-child { border-left: 3px solid var(--c-teal-600); padding-left: 7px; }
+.scenario-table tr.promo td      { background: var(--c-amber-50); }
 .decision-banner { background: var(--c-teal-50); border: 0.5px solid var(--c-teal-600); border-radius: var(--radius-md); padding: 14px 16px; margin: 0 0 14px; display: flex; align-items: flex-start; gap: 12px; }
-.decision-icon { font-size: 20px; }
-.decision-label { font-weight: 500; color: var(--c-teal-800); font-size: 14px; }
+.decision-label  { font-weight: 500; color: var(--c-teal-800); font-size: 14px; }
 .decision-detail { font-size: 12px; color: var(--c-teal-600); margin-top: 3px; }
-.tabs { display: flex; gap: 4px; border-bottom: 0.5px solid var(--border); margin: 0 0 16px; }
-.tab { padding: 10px 16px; cursor: pointer; border: none; background: transparent; font-family: inherit; font-size: 14px; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs { display: flex; gap: 4px; border-bottom: 0.5px solid var(--border); margin: 0 0 16px; flex-wrap: wrap; }
+.tab  { padding: 10px 16px; cursor: pointer; border: none; background: transparent; font-family: inherit; font-size: 14px; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tab.active { color: var(--text-primary); border-bottom-color: var(--c-blue-600); font-weight: 500; }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
 .cascade-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin: 8px 0 0; }
 .cascade-filters label { font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 3px; }
-.cascade-filters select { height: 36px; font-size: 13px; }
 .cascade-filters .sku-sel { min-width: 260px; flex: 1; }
 .filter-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
 .filter-row label { font-size: 13px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; }
-.filter-row select { height: 32px; font-size: 13px; }
+.controls-row { display: flex; align-items: center; gap: 16px; margin: 16px 0; flex-wrap: wrap; }
 .note { background: var(--c-amber-50); border-left: 3px solid var(--c-amber-600); padding: 12px 14px; border-radius: 0 var(--radius-md) var(--radius-md) 0; font-size: 13px; color: var(--c-amber-800); margin: 16px 0; }
-.footer { margin-top: 32px; padding-top: 16px; border-top: 0.5px solid var(--border); font-size: 12px; color: var(--text-tertiary); text-align: center; }
-.summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 4px; }
 .summary-card { padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-md); text-align: center; }
 .summary-card .num { font-size: 22px; font-weight: 500; }
 .summary-card .lbl { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
-@media (max-width: 700px) { .cascade-filters .sku-sel { min-width: 100%; } .chart-wrap { height: 240px; } body { padding: 12px; } }
 .plan-chips { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0; }
-.plan-chip { padding: 12px 18px; border-radius: var(--radius-md); cursor: pointer; border: 2px solid transparent; text-align: center; min-width: 110px; user-select: none; }
+.plan-chip  { padding: 12px 18px; border-radius: var(--radius-md); cursor: pointer; border: 2px solid transparent; text-align: center; min-width: 110px; user-select: none; }
 .plan-chip .chip-num { font-size: 26px; font-weight: 500; line-height: 1.1; }
 .plan-chip .chip-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
 .plan-chip:hover { opacity: 0.75; }
 .plan-chip.active { border-color: currentColor; }
-.chip-bajar     { background: var(--c-blue-50);   color: var(--c-blue-800); }
-.chip-subir     { background: var(--c-teal-50);   color: var(--c-teal-800); }
-.chip-subir-dir { background: var(--c-amber-50);  color: var(--c-amber-800); }
-.chip-mantener  { background: var(--c-gray-50);   color: var(--c-gray-600); }
-.chip-investigar{ background: var(--c-purple-50); color: var(--c-purple-800); }
-.chip-todos     { background: var(--bg-secondary); color: var(--text-secondary); font-size: 13px; display:flex; align-items:center; justify-content:center; }
-.badge-alerta   { background: var(--c-amber-50); color: var(--c-amber-800); font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
-.plan-price-arrow { color: var(--text-tertiary); margin: 0 4px; }
+.chip-bajar      { background: var(--c-blue-50);    color: var(--c-blue-800); }
+.chip-subir      { background: var(--c-teal-50);    color: var(--c-teal-800); }
+.chip-mantener   { background: var(--c-gray-50);    color: var(--c-gray-600); }
+.chip-sinrec     { background: var(--c-purple-50);  color: var(--c-purple-800); }
+.chip-todos      { background: var(--bg-secondary); color: var(--text-secondary); font-size:13px; display:flex; align-items:center; justify-content:center; }
+.btn-primary { padding: 9px 20px; background: var(--c-blue-600); color: white; border: none; border-radius: var(--radius-md); font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
+.btn-primary:hover { background: var(--c-blue-800); }
+.btn-secondary { padding: 9px 20px; background: white; color: var(--text-primary); border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; cursor: pointer; }
+.btn-secondary:hover { background: var(--bg-secondary); }
+.btn-preset { padding: 6px 12px; border: 0.5px solid var(--border); border-radius: 6px; background: white; cursor: pointer; font-size: 13px; font-family: inherit; }
+.btn-preset:hover { background: var(--bg-secondary); }
+.btn-optimal { padding: 6px 12px; border: 0.5px solid var(--c-blue-600); border-radius: 6px; background: var(--c-blue-50); color: var(--c-blue-800); cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit; }
+/* Upload screen */
+.drop-zone { border: 2px dashed var(--border-strong); border-radius: var(--radius-lg); padding: 48px 32px; text-align: center; cursor: pointer; transition: background 0.15s; margin-bottom: 16px; }
+.drop-zone:hover, .drop-zone.drag-over { background: var(--c-blue-50); border-color: var(--c-blue-600); }
+.drop-icon { font-size: 40px; margin-bottom: 12px; }
+.btn-demo { width: 100%; padding: 18px 24px; background: var(--c-teal-50); color: var(--c-teal-800); border: 1.5px solid var(--c-teal-600); border-radius: var(--radius-lg); font-family: inherit; font-size: 15px; font-weight: 500; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.btn-demo:hover { background: #d0eee3; }
+.btn-demo small { font-size: 12px; font-weight: 400; opacity: 0.75; }
+/* Mapping screen */
+.mapping-row { display: grid; grid-template-columns: 180px 1fr 120px; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+.mapping-row:last-child { border-bottom: none; }
+.mapping-label { font-size: 14px; }
+.mapping-req { font-size: 11px; color: var(--c-red-800); font-weight: 500; }
+.mapping-opt { font-size: 11px; color: var(--text-tertiary); }
+.mapping-preview { font-size: 12px; color: var(--text-tertiary); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Validation screen */
+.semaforo { border-radius: var(--radius-lg); padding: 20px; margin-bottom: 12px; display: flex; gap: 16px; align-items: flex-start; }
+.semaforo-verde   { background: var(--c-green-50); border: 1px solid var(--c-green-600); }
+.semaforo-amarillo{ background: var(--c-amber-50); border: 1px solid var(--c-amber-600); }
+.semaforo-rojo    { background: var(--c-red-50);   border: 1px solid var(--c-red-600); }
+.semaforo-dot { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
+.dot-verde    { background: var(--c-green-600); }
+.dot-amarillo { background: var(--c-amber-600); }
+.dot-rojo     { background: var(--c-red-600); }
+.semaforo-title { font-weight: 500; font-size: 15px; margin-bottom: 6px; }
+.semaforo ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; }
+/* Export tab */
+.export-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+.export-card { border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; }
+.export-card-icon { font-size: 28px; margin-bottom: 8px; }
+.export-card-title { font-weight: 500; font-size: 15px; margin-bottom: 4px; }
+.export-card-desc  { font-size: 13px; color: var(--text-secondary); flex: 1; }
+.export-card .btn-primary, .export-card .btn-secondary { margin-top: 14px; }
+.footer { margin-top: 32px; padding-top: 16px; border-top: 0.5px solid var(--border); font-size: 12px; color: var(--text-tertiary); text-align: center; }
+@media (max-width: 700px) {
+  body { padding: 12px; }
+  .cascade-filters .sku-sel { min-width: 100%; }
+  .chart-wrap { height: 240px; }
+  .mapping-row { grid-template-columns: 1fr; }
+  .export-grid { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
 
-<h1>Simulador de Precios</h1>
-<p class="subtitle">OfficeMax · Archivo y Accesorios · Análisis de elasticidad y simulación de escenarios</p>
+<!-- ═══════════════════════════════════════════════
+     SCREEN 1 — UPLOAD
+     ═══════════════════════════════════════════════ -->
+<div id="screen-upload">
+  <div style="max-width:580px; margin:60px auto; text-align:center;">
+    <h1 style="font-size:28px; margin-bottom:6px;">Dynamic Pricing Analyzer</h1>
+    <p class="subtitle" style="margin-bottom:32px;">Estimación de elasticidad precio-demanda y simulación de escenarios</p>
 
-<div class="tabs">
-  <button class="tab active" data-tab="simulador">Simulador por SKU</button>
-  <button class="tab" data-tab="tabla">Tabla ejecutiva</button>
-  <button class="tab" data-tab="metodologia">Metodología</button>
-  <button class="tab" data-tab="plan">Plan de Acción</button>
+    <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="drop-icon">📂</div>
+      <p style="font-size:15px; font-weight:500; margin:0 0 6px;">Arrastra tu archivo CSV o Excel aquí</p>
+      <p style="font-size:13px; color:var(--text-secondary); margin:0 0 16px;">Formatos soportados: .csv · .xlsx · .xls</p>
+      <button class="btn-primary" onclick="event.stopPropagation(); document.getElementById('file-input').click()">Seleccionar archivo</button>
+      <input type="file" id="file-input" accept=".csv,.xlsx,.xls" style="display:none">
+    </div>
+
+    <div style="display:flex; align-items:center; gap:12px; margin:20px 0;">
+      <div style="flex:1; height:1px; background:var(--border);"></div>
+      <span style="color:var(--text-tertiary); font-size:13px;">o usa datos de ejemplo</span>
+      <div style="flex:1; height:1px; background:var(--border);"></div>
+    </div>
+
+    <button class="btn-demo" onclick="loadDemo()">
+      Usar datos demo OfficeMax →
+      <small>51 SKUs · Archivo y Accesorios · 28 meses de historial</small>
+    </button>
+
+    <p style="margin-top:20px;">
+      <a href="#" id="link-template" onclick="downloadTemplate(); return false;" style="color:var(--c-blue-600); font-size:13px; text-decoration:none;">
+        ↓ Descargar plantilla_input.csv
+      </a>
+    </p>
+
+    <p id="upload-error" style="color:var(--c-red-800); font-size:13px; margin-top:12px; display:none;"></p>
+  </div>
 </div>
 
-<!-- TAB 1: SIMULADOR -->
-<div class="tab-panel active" id="tab-simulador">
-
-  <div class="card">
-    <h3>Filtros de selección</h3>
-    <div class="cascade-filters">
-      <label>Departamento
-        <select id="fil-dept"><option value="">Todos</option></select>
-      </label>
-      <label>Clase
-        <select id="fil-clase"><option value="">Todas</option></select>
-      </label>
-      <label style="flex:1;">SKU / Producto
-        <select id="sku-select" class="sku-sel"></select>
-      </label>
-      <label>Mes (beta)
-        <select id="fil-mes"><option value="">Global (28 meses)</option></select>
-      </label>
-    </div>
-  </div>
-
-  <div class="card" id="sku-info"></div>
-
-  <div class="card" id="card-beta-temporal" style="display:none;">
-    <h3>Comportamiento de la beta a lo largo del tiempo</h3>
-    <div class="beta-chart-wrap"><canvas id="chart-beta"></canvas></div>
-    <p style="font-size:12px; color:var(--text-tertiary); margin:4px 0 0;">
-      Puntos rojos intensos = p&lt;0.10 (estadísticamente significativo). Línea azul = β global de referencia.
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>Mueve el precio para simular</h3>
-    <div class="controls-row">
-      <label style="min-width:80px; font-size:13px; color:var(--text-secondary);">Δ precio:</label>
-      <input type="range" id="price-slider" min="-60" max="60" step="1" value="0" style="flex:1;">
-      <span id="price-delta" style="min-width:60px; font-weight:500; text-align:right;">0%</span>
-    </div>
-    <div class="controls-row" style="flex-wrap:wrap; gap:6px;">
-      <button onclick="setSlider(-20)" style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">-20%</button>
-      <button onclick="setSlider(-10)" style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">-10%</button>
-      <button onclick="setSlider(-5)"  style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">-5%</button>
-      <button onclick="setSlider(0)"   style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">0%</button>
-      <button onclick="setSlider(5)"   style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">+5%</button>
-      <button onclick="setSlider(10)"  style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">+10%</button>
-      <button onclick="setSlider(20)"  style="padding:6px 12px; border:0.5px solid var(--border); border-radius:6px; background:white; cursor:pointer; font-size:13px;">+20%</button>
-      <button id="btn-optimal" onclick="setSliderToOptimal()" style="padding:6px 12px; border:0.5px solid var(--c-blue-600); border-radius:6px; background:var(--c-blue-50); color:var(--c-blue-800); cursor:pointer; font-size:13px; font-weight:500;">Precio recomendado</button>
-    </div>
-    <div class="metric-grid">
-      <div class="metric">
-        <div class="metric-label">Precio nuevo</div>
-        <div class="metric-value" id="m-precio">$0.00</div>
-        <div class="metric-sub" id="m-precio-sub">precio actual $0.00</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Unidades estimadas</div>
-        <div class="metric-value" id="m-unidades">0</div>
-        <div class="metric-sub" id="m-unidades-sub">vs histórico 0</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Ingreso final</div>
-        <div class="metric-value" id="m-ingreso">$0</div>
-        <div class="metric-sub" id="m-ingreso-sub">vs histórico $0</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Margen bruto final</div>
-        <div class="metric-value" id="m-margen">$0</div>
-        <div class="metric-sub" id="m-margen-sub">vs histórico $0</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>Curvas de simulación (±60%)</h3>
-    <div class="chart-wrap"><canvas id="chart-sim"></canvas></div>
-    <p style="font-size:12px; color:var(--text-tertiary); margin:8px 0 0;">
-      Línea vertical azul = selección actual. Verde = ingreso; roja = margen bruto.
-    </p>
-  </div>
-
-  <div class="card">
-    <h3>Escenarios con decisión automática</h3>
-    <div id="decision-banner" style="display:none;" class="decision-banner">
-      <div class="decision-icon">★</div>
+<!-- ═══════════════════════════════════════════════
+     SCREEN 2 — COLUMN MAPPING
+     ═══════════════════════════════════════════════ -->
+<div id="screen-mapping" style="display:none;">
+  <div style="max-width:760px; margin:40px auto;">
+    <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px;">
+      <button class="btn-secondary" onclick="showScreen('upload')">← Cambiar datos</button>
       <div>
-        <div class="decision-label" id="decision-label"></div>
-        <div class="decision-detail" id="decision-detail"></div>
+        <h1 style="font-size:22px; margin:0;">Mapeo de columnas</h1>
+        <p class="subtitle" style="margin:4px 0 0;" id="mapping-info">—</p>
       </div>
     </div>
-    <div style="overflow-x:auto;">
-      <table class="scenario-table" id="tabla-escenarios">
-        <thead>
-          <tr>
-            <th>Δ precio</th>
-            <th class="numeric">Precio nuevo</th>
-            <th class="numeric">Unidades</th>
-            <th class="numeric">Ingreso ($)</th>
-            <th class="numeric">Margen ($)</th>
-            <th class="numeric">Δ Ingreso</th>
-            <th class="numeric">Δ Margen</th>
-            <th class="numeric">Score ★</th>
-          </tr>
-        </thead>
-        <tbody id="escenarios-body"></tbody>
-      </table>
+
+    <div class="card">
+      <h3>Columnas requeridas</h3>
+      <div id="mapping-required"></div>
+    </div>
+
+    <div class="card">
+      <h3>Columnas opcionales</h3>
+      <div id="mapping-optional"></div>
+    </div>
+
+    <p id="mapping-error" style="color:var(--c-red-800); font-size:13px; display:none; margin-bottom:12px;"></p>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <button class="btn-secondary" onclick="showScreen('upload')">← Atrás</button>
+      <button class="btn-primary" onclick="processMapping()">Continuar →</button>
     </div>
   </div>
 </div>
 
-<!-- TAB 2: TABLA EJECUTIVA -->
-<div class="tab-panel" id="tab-tabla">
-  <div class="card">
-    <h3>Distribución de los SKUs analizados</h3>
-    <div class="summary-stats" id="summary-stats"></div>
-  </div>
-  <div class="card">
-    <h3>Recomendaciones por SKU</h3>
-    <div class="filter-row">
-      <label>Departamento:
-        <select id="filtro-dept-tabla"><option value="">Todos</option></select>
-      </label>
-      <label>Acción:
-        <select id="filtro-accion-tabla">
-          <option value="">Todas</option>
-          <option value="BAJAR">BAJAR</option>
-          <option value="SUBIR">SUBIR (fórmula)</option>
-          <option value="SUBIR_DIRECCIONAL">SUBIR (direccional)</option>
-          <option value="MANTENER">MANTENER</option>
-          <option value="INVESTIGAR">INVESTIGAR</option>
-        </select>
-      </label>
-      <label>Clasificación:
-        <select id="filtro-clase-tabla">
-          <option value="">Todas</option>
-          <option value="ELASTICO">Elástico ★</option>
-          <option value="Elastico_NS">Elástico no significativo</option>
-          <option value="Inelastico">Inelástico</option>
-          <option value="Sin_reaccion">Sin reacción</option>
-          <option value="Sin datos">Sin datos</option>
-        </select>
-      </label>
-      <input type="text" id="buscar-tabla" placeholder="Buscar por nombre o SKU..." style="flex:1; min-width:200px; height:32px;">
+<!-- ═══════════════════════════════════════════════
+     SCREEN 3 — VALIDATION
+     ═══════════════════════════════════════════════ -->
+<div id="screen-validation" style="display:none;">
+  <div style="max-width:760px; margin:40px auto;">
+    <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px;">
+      <button class="btn-secondary" onclick="showScreen('mapping')">← Volver</button>
+      <div>
+        <h1 style="font-size:22px; margin:0;">Validación de datos</h1>
+        <p class="subtitle" style="margin:4px 0 0;">Revisa antes de continuar</p>
+      </div>
     </div>
-    <div style="overflow-x:auto;">
-      <table id="tabla-maestra">
-        <thead>
-          <tr>
-            <th>SKU</th>
-            <th>Producto</th>
-            <th>Departamento</th>
-            <th>Clasificación</th>
-            <th class="numeric">β</th>
-            <th class="numeric">Precio actual</th>
-            <th class="numeric">Precio rec.</th>
-            <th>Acción</th>
-          </tr>
-        </thead>
-        <tbody id="tabla-body"></tbody>
-      </table>
+
+    <div id="validation-result"></div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:8px;">
+      <button class="btn-secondary" onclick="showScreen('mapping')">← Atrás</button>
+      <button class="btn-primary" id="btn-go-dashboard" onclick="buildAndShowDashboard()">Continuar al dashboard →</button>
     </div>
   </div>
 </div>
 
-<!-- TAB 3: METODOLOGÍA -->
-<div class="tab-panel" id="tab-metodologia">
-  <div class="card">
-    <h2 style="margin-top:0;">Cómo funciona el simulador</h2>
-    <h3>Modelo de elasticidad</h3>
-    <p style="font-size:14px;">β se estima por SKU usando regresión log-log sobre ventanas semestrales deslizantes (6 meses, paso de 1 mes). Cuando se selecciona un mes específico, el simulador usa la β de esa ventana.</p>
-    <p style="font-family:monospace; background:var(--bg-secondary); padding:12px; border-radius:var(--radius-md); font-size:13px;">
-      log(unidades + 1) = α + β × log(precio_real)
-    </p>
-    <h3 style="margin-top:24px;">Fórmulas del simulador</h3>
-    <p style="font-family:monospace; background:var(--bg-secondary); padding:12px; border-radius:var(--radius-md); font-size:13px;">
-      unidades_sim  = unidades_hist × (precio_nuevo / precio_actual) ^ β<br>
-      ingreso_final = precio_nuevo × unidades_sim<br>
-      margen_bruto  = (precio_nuevo − costo_unitario) × unidades_sim
-    </p>
-    <h3 style="margin-top:24px;">Decisión automática</h3>
-    <p style="font-family:monospace; background:var(--bg-secondary); padding:12px; border-radius:var(--radius-md); font-size:13px;">
-      score = Δ_ingreso% × 0.5 + Δ_margen% × 0.5<br>
-      (si no hay costo disponible: score = Δ_ingreso% al 100%)<br>
-      El escenario con mayor score se marca con ★
-    </p>
-    <h3 style="margin-top:24px;">Clasificación de SKUs</h3>
-    <table style="font-size:13px;">
-      <tr><td><span class="badge badge-elastico">ELÁSTICO ★</span></td><td>β &lt; −1 y p &lt; 0.10</td></tr>
-      <tr><td><span class="badge badge-elastico-ns">Elástico n.s.</span></td><td>β &lt; −1 pero p ≥ 0.10</td></tr>
-      <tr><td><span class="badge badge-inelastico">Inelástico</span></td><td>−1 &lt; β &lt; 0</td></tr>
-      <tr><td><span class="badge badge-sin-reaccion">Sin reacción</span></td><td>β ≥ 0</td></tr>
-    </table>
-    <h3 style="margin-top:24px;">Jerarquía de departamentos</h3>
-    <table style="font-size:13px;">
-      <tr><th>Departamento</th><th>Clases incluidas</th></tr>
-      <tr><td>Carpetas y Folders</td><td>Folders Manila, Folders Kraft, Folders Polipropileno, Refuerzos para Carpeta</td></tr>
-      <tr><td>Cajas y Archivo</td><td>Cajas de Archivo, Archivos Expandibles</td></tr>
-      <tr><td>Etiquetas</td><td>Etiquetas Adhesivas, Etiquetas de Impresión, Etiquetas Especiales</td></tr>
-      <tr><td>Tarjetas</td><td>Tarjetas Índice Blancas, Tarjetas Raya y Cuadro</td></tr>
-    </table>
-    <div class="note" style="margin-top:24px;">
-      <strong>Nota:</strong> los márgenes son direccionales. La base de costos presenta inconsistencias documentadas. Validar con prueba A/B antes de rollout.
+<!-- ═══════════════════════════════════════════════
+     SCREEN 4 — DASHBOARD (5 tabs)
+     ═══════════════════════════════════════════════ -->
+<div id="screen-dashboard" style="display:none;">
+
+  <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:8px;">
+    <div>
+      <h1 id="dash-title">Dynamic Pricing Analyzer</h1>
+      <p class="subtitle" id="dash-subtitle"></p>
+    </div>
+    <button class="btn-secondary" style="flex-shrink:0; margin-top:4px;" onclick="showScreen('upload')">← Cambiar datos</button>
+  </div>
+
+  <div class="tabs" id="main-tabs">
+    <button class="tab active" data-tab="simulador">Simulador por SKU</button>
+    <button class="tab" data-tab="tabla">Tabla ejecutiva</button>
+    <button class="tab" data-tab="plan">Plan de Acción</button>
+    <button class="tab" data-tab="exportar">Exportar</button>
+    <button class="tab" data-tab="limitaciones">Limitaciones</button>
+  </div>
+
+  <!-- ─── TAB 1: SIMULADOR ───────────────────────────────────── -->
+  <div class="tab-panel active" id="tab-simulador">
+
+    <div class="card">
+      <h3>Filtros de selección</h3>
+      <div class="cascade-filters">
+        <label>Departamento
+          <select id="fil-dept" onchange="rebuildClases()"><option value="">Todos</option></select>
+        </label>
+        <label>Clase
+          <select id="fil-clase" onchange="rebuildSkus()"><option value="">Todas</option></select>
+        </label>
+        <label style="flex:1;">SKU / Producto
+          <select id="sku-select" class="sku-sel" onchange="onSkuChange()"></select>
+        </label>
+        <label>Mes (beta)
+          <select id="fil-mes" onchange="onMesChange()"><option value="">Global</option></select>
+        </label>
+      </div>
+    </div>
+
+    <div class="card" id="sku-info"></div>
+
+    <div class="card" id="card-beta-temporal" style="display:none;">
+      <h3>Beta a lo largo del tiempo</h3>
+      <div class="beta-chart-wrap"><canvas id="chart-beta"></canvas></div>
+      <p style="font-size:12px; color:var(--text-tertiary); margin:4px 0 0;">
+        Puntos intensos = p &lt; 0.10. Línea azul = β global de referencia.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Mueve el precio para simular</h3>
+      <div class="controls-row">
+        <label style="min-width:80px; font-size:13px; color:var(--text-secondary);">Δ precio:</label>
+        <input type="range" id="price-slider" min="-60" max="60" step="1" value="0" style="flex:1;" oninput="onSlider()">
+        <span id="price-delta" style="min-width:64px; font-weight:500; text-align:right;">0%</span>
+      </div>
+      <div class="controls-row" style="flex-wrap:wrap; gap:6px;">
+        <button class="btn-preset" onclick="setSlider(-20)">-20%</button>
+        <button class="btn-preset" onclick="setSlider(-10)">-10%</button>
+        <button class="btn-preset" onclick="setSlider(-5)">-5%</button>
+        <button class="btn-preset" onclick="setSlider(0)">0%</button>
+        <button class="btn-preset" onclick="setSlider(5)">+5%</button>
+        <button class="btn-preset" onclick="setSlider(10)">+10%</button>
+        <button class="btn-preset" onclick="setSlider(20)">+20%</button>
+        <button class="btn-optimal" onclick="setSliderToOptimal()">★ Precio recomendado</button>
+      </div>
+      <div class="metric-grid">
+        <div class="metric">
+          <div class="metric-label">Precio nuevo</div>
+          <div class="metric-value" id="m-precio">—</div>
+          <div class="metric-sub" id="m-precio-sub"></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Unidades estimadas</div>
+          <div class="metric-value" id="m-unidades">—</div>
+          <div class="metric-sub" id="m-unidades-sub"></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Ingreso final</div>
+          <div class="metric-value" id="m-ingreso">—</div>
+          <div class="metric-sub" id="m-ingreso-sub"></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Margen bruto final</div>
+          <div class="metric-value" id="m-margen">—</div>
+          <div class="metric-sub" id="m-margen-sub"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Curvas de simulación (±60%)</h3>
+      <div class="chart-wrap"><canvas id="chart-sim"></canvas></div>
+      <p style="font-size:12px; color:var(--text-tertiary); margin:8px 0 0;">
+        Línea vertical azul = selección actual. Verde = ingreso; roja = margen bruto.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Escenarios de precio y promociones</h3>
+      <div id="decision-banner" style="display:none;" class="decision-banner">
+        <div style="font-size:20px;">★</div>
+        <div>
+          <div class="decision-label" id="decision-label"></div>
+          <div class="decision-detail" id="decision-detail"></div>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="scenario-table">
+          <thead>
+            <tr>
+              <th>Escenario</th>
+              <th class="numeric">Precio efectivo</th>
+              <th class="numeric">Unidades</th>
+              <th class="numeric">Ingreso ($)</th>
+              <th class="numeric">Margen ($)</th>
+              <th class="numeric">Δ Ingreso</th>
+              <th class="numeric">Δ Margen</th>
+              <th class="numeric">Score ★</th>
+            </tr>
+          </thead>
+          <tbody id="escenarios-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- TAB 4: PLAN DE ACCIÓN -->
-<div class="tab-panel" id="tab-plan">
-
-  <div class="card">
-    <h3>Filtros</h3>
-    <div class="filter-row">
-      <label>Departamento:
-        <select id="plan-dept"><option value="">Todos</option></select>
-      </label>
-      <label>Mes (beta):
-        <select id="plan-mes"><option value="">Global (28 meses)</option></select>
-      </label>
+  <!-- ─── TAB 2: TABLA EJECUTIVA ─────────────────────────────── -->
+  <div class="tab-panel" id="tab-tabla">
+    <div class="card">
+      <div class="summary-stats" id="summary-stats"></div>
+    </div>
+    <div class="card">
+      <h3>Recomendaciones por SKU</h3>
+      <div class="filter-row">
+        <label>Departamento:
+          <select id="filtro-dept-tabla" onchange="renderTabla()"><option value="">Todos</option></select>
+        </label>
+        <label>Acción:
+          <select id="filtro-accion-tabla" onchange="renderTabla()">
+            <option value="">Todas</option>
+            <option value="BAJAR">Bajar</option>
+            <option value="SUBIR">Subir</option>
+            <option value="MANTENER">Mantener</option>
+            <option value="SUBIR_DIRECCIONAL">Subir (dir.)</option>
+            <option value="NO_RECOMENDAR">Sin recom.</option>
+            <option value="EXPLORATORIO">Exploratorio</option>
+          </select>
+        </label>
+        <label>Clasificación:
+          <select id="filtro-clase-tabla" onchange="renderTabla()">
+            <option value="">Todas</option>
+            <option value="ELASTICO">Elástico ★</option>
+            <option value="Elastico_NS">Elástico n.s.</option>
+            <option value="Inelastico">Inelástico</option>
+            <option value="Sin_reaccion">Sin reacción</option>
+            <option value="Sin datos">Sin datos</option>
+          </select>
+        </label>
+        <input type="text" id="buscar-tabla" placeholder="Buscar SKU o producto..." oninput="renderTabla()" style="flex:1; min-width:180px; height:32px;">
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="tabla-maestra">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Producto</th>
+              <th>Departamento</th>
+              <th>Clasificación</th>
+              <th class="numeric">β</th>
+              <th class="numeric">p-valor</th>
+              <th class="numeric">R²</th>
+              <th class="numeric">n</th>
+              <th class="numeric">Precio actual</th>
+              <th class="numeric">Precio rec.</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <div class="card">
-    <h3>Resumen por acción — haz clic para filtrar</h3>
-    <div id="plan-chips" class="plan-chips"></div>
-  </div>
-
-  <div class="card">
-    <h3>Plan de acción por SKU</h3>
-    <p style="font-size:12px;color:var(--text-tertiary);margin:0 0 12px;">
-      Ingreso y margen esperados se calculan al precio recomendado usando la β del mes seleccionado (o global si no hay dato mensual).
-      Haz clic en una fila para abrir el SKU en el Simulador.
-    </p>
-    <div style="overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th>Acción recomendada</th>
-            <th>β utilizada</th>
-            <th class="numeric">Precio actual</th>
-            <th class="numeric">Precio recomendado</th>
-            <th class="numeric">Δ precio</th>
-            <th class="numeric">Ingreso esperado</th>
-            <th class="numeric">Margen esperado</th>
-            <th class="numeric">Score</th>
-          </tr>
-        </thead>
-        <tbody id="plan-body"></tbody>
-      </table>
+  <!-- ─── TAB 3: PLAN DE ACCIÓN ──────────────────────────────── -->
+  <div class="tab-panel" id="tab-plan">
+    <div class="card">
+      <h3>Filtros</h3>
+      <div class="filter-row">
+        <label>Departamento:
+          <select id="plan-dept" onchange="renderPlan()"><option value="">Todos</option></select>
+        </label>
+        <label>Mes (beta):
+          <select id="plan-mes" onchange="renderPlan()"><option value="">Global</option></select>
+        </label>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Resumen — haz clic para filtrar</h3>
+      <div id="plan-chips" class="plan-chips"></div>
+    </div>
+    <div class="card">
+      <h3>Plan de acción por SKU</h3>
+      <p style="font-size:12px; color:var(--text-tertiary); margin:0 0 10px;">
+        Ingreso y margen calculados al precio recomendado. Haz clic en una fila para abrir el SKU en el Simulador.
+      </p>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Acción</th>
+              <th class="numeric">β</th>
+              <th class="numeric">Precio actual</th>
+              <th class="numeric">Precio rec.</th>
+              <th class="numeric">Δ precio</th>
+              <th class="numeric">Ingreso esperado</th>
+              <th class="numeric">Margen esperado</th>
+              <th class="numeric">Score</th>
+            </tr>
+          </thead>
+          <tbody id="plan-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="footer">
-  Simulador generado a partir del análisis de elasticidad sobre 51 SKUs · 26,891 ventas, 28 meses (ene-2024 a abr-2026)
-</div>
+  <!-- ─── TAB 4: EXPORTAR ────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-exportar">
+    <div class="card">
+      <h2 style="margin-top:0;">Exportar resultados</h2>
+      <p style="color:var(--text-secondary); font-size:14px; margin-bottom:0;">Descarga los resultados del análisis en formato CSV estándar.</p>
+      <div class="export-grid">
+        <div class="export-card">
+          <div class="export-card-icon">📋</div>
+          <div class="export-card-title">Recomendaciones por SKU</div>
+          <div class="export-card-desc">SKU, nombre, β, p-valor, R², clasificación, acción, precio actual, precio recomendado, score.</div>
+          <button class="btn-primary" onclick="exportRecomendaciones()">Descargar CSV</button>
+        </div>
+        <div class="export-card">
+          <div class="export-card-icon">📊</div>
+          <div class="export-card-title">Tabla de escenarios completa</div>
+          <div class="export-card-desc">Todos los escenarios (−20% a +20%) para cada SKU con ingreso, margen y score.</div>
+          <button class="btn-primary" onclick="exportEscenarios()">Descargar CSV</button>
+        </div>
+        <div class="export-card">
+          <div class="export-card-icon">📄</div>
+          <div class="export-card-title">Plantilla de entrada</div>
+          <div class="export-card-desc">Formato CSV esperado con columnas predefinidas y 3 filas de ejemplo.</div>
+          <button class="btn-secondary" onclick="downloadTemplate()">Descargar plantilla</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TAB 5: LIMITACIONES ───────────────────────────────── -->
+  <div class="tab-panel" id="tab-limitaciones">
+    <div class="card">
+      <h2 style="margin-top:0;">Limitaciones del modelo</h2>
+      <p style="color:var(--text-secondary); font-size:14px; margin-bottom:20px;">Esta sección es requerida como parte del entregable. El objetivo es transparentar los supuestos y restricciones del análisis.</p>
+
+      <h3>Supuestos del modelo</h3>
+      <ul style="font-size:14px; padding-left:20px; margin:8px 0 20px; line-height:2;">
+        <li>La demanda sigue una función log-log: <code>log(q+1) = α + β·log(p)</code></li>
+        <li>La elasticidad β es constante en el rango de precios analizado</li>
+        <li>Las unidades vendidas son un proxy válido de la demanda (no captura demanda insatisfecha)</li>
+        <li>El costo unitario es constante (no hay economías de escala ni costos variables)</li>
+        <li>Las ventas de un SKU no afectan las ventas de otros (sin sustitución cruzada)</li>
+        <li>El entorno competitivo permanece estable durante el período de simulación</li>
+      </ul>
+
+      <h3>Limitaciones de los datos</h3>
+      <ul style="font-size:14px; padding-left:20px; margin:8px 0 20px; line-height:2;">
+        <li>Se requieren al menos 5 observaciones de precio–cantidad por SKU para estimar β</li>
+        <li>Si el precio no varía entre períodos, la regresión no puede identificar β (SSxx = 0)</li>
+        <li>Los outliers de precio (errores de captura) no se detectan ni depuran automáticamente</li>
+        <li>SKUs con β ≥ 0 estadísticamente significativa pueden indicar colinealidad o datos erróneos</li>
+        <li>La base de costos puede presentar inconsistencias; los márgenes son direccionales</li>
+      </ul>
+
+      <h3>Lo que el modelo NO hace</h3>
+      <ul style="font-size:14px; padding-left:20px; margin:8px 0 20px; line-height:2;">
+        <li>No modela efectos de estacionalidad ni tendencia temporal de la demanda</li>
+        <li>No considera elasticidades cruzadas entre SKUs de la misma categoría</li>
+        <li>No optimiza el portafolio completo; analiza cada SKU de forma independiente</li>
+        <li>No predice el impacto de acciones competidoras o cambios macroeconómicos</li>
+        <li>No reemplaza una prueba A/B controlada antes de un rollout de precios</li>
+        <li>No estima la respuesta a la demanda ante cambios de calidad o posicionamiento</li>
+      </ul>
+
+      <h3>Recomendaciones para uso correcto</h3>
+      <ul style="font-size:14px; padding-left:20px; margin:8px 0 20px; line-height:2;">
+        <li>Validar los cambios recomendados con pruebas piloto antes de aplicarlos masivamente</li>
+        <li>Revisar SKUs con p-valor > 0.10: la β puede no ser confiable</li>
+        <li>Complementar con información cualitativa: negociación con proveedor, posicionamiento, estrategia de canal</li>
+        <li>Repetir el análisis periódicamente (mínimo trimestral) para detectar cambios en la elasticidad</li>
+        <li>Consultar al equipo de finanzas para validar la base de costos antes de usar márgenes en decisiones</li>
+      </ul>
+
+      <div class="note">
+        <strong>Nota académica:</strong> Este modelo de estimación de elasticidad via OLS log-log es un punto de partida robusto para decisiones de pricing táctico. Su simplicidad es también su virtud: los resultados son interpretables y auditables sin infraestructura adicional. Para decisiones estratégicas se recomienda complementar con modelos de demanda jerárquicos o métodos de inferencia causal.
+      </div>
+    </div>
+  </div>
+
+  <div class="footer" id="dash-footer"></div>
+</div><!-- /screen-dashboard -->
 
 <script>
-// DATOS EMBEBIDOS — sustituidos automáticamente por el notebook
-const SKUS_DATA = [{"sku": 50094200, "nombre": "REFUERZO CARP BLANCO 210P OMX", "clase": "REFUERZOS PARA CARPETA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 9.317, "p_value": 0.0252, "clasificacion": "Sin_reaccion", "costo": 21.48, "precio_actual": 36.08, "precio_min_hist": 26.49, "precio_max_hist": 40.65, "unidades_hist": 97, "precio_recomendado": 36.08, "accion": "INVESTIGAR", "n_trans": 77}, {"sku": 50076882, "nombre": "ETIQUETA OMX BLANCA CARTA 50PZ", "clase": "ETIQUETAS DE IMPRESION", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 1.282, "p_value": 0.5178, "clasificacion": "Sin_reaccion", "costo": 122.16, "precio_actual": 179.53, "precio_min_hist": 123.71, "precio_max_hist": 202.78, "unidades_hist": 322, "precio_recomendado": 179.53, "accion": "MANTENER", "n_trans": 255}, {"sku": 50049770, "nombre": "ETIQUETA CARTA BLANCA 50P", "clase": "ETIQUETAS ESPECIALES", "tipo_marca": "Marca Externa", "marca": "POCHTECA", "beta": -5.082, "p_value": 0.0118, "clasificacion": "ELASTICO", "costo": 207.54, "precio_actual": 249.33, "precio_min_hist": 180.43, "precio_max_hist": 276.85, "unidades_hist": 95, "precio_recomendado": 258.38, "accion": "MANTENER", "n_trans": 68}, {"sku": 50011910, "nombre": "TARJETA OXFORD IND BLANCA 100P", "clase": "TARJETAS INDICE BLANCAS", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": 1.358, "p_value": 0.2936, "clasificacion": "Sin_reaccion", "costo": 9.38, "precio_actual": 21.11, "precio_min_hist": 15.02, "precio_max_hist": 21.47, "unidades_hist": 78, "precio_recomendado": 21.11, "accion": "MANTENER", "n_trans": 66}, {"sku": 50094187, "nombre": "REFUERZO CARP AZUL 210P OMX", "clase": "REFUERZOS PARA CARPETA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -5.137, "p_value": 0.0006, "clasificacion": "ELASTICO", "costo": 24.84, "precio_actual": 33.8, "precio_min_hist": 26.49, "precio_max_hist": 40.65, "unidades_hist": 67, "precio_recomendado": 30.84, "accion": "BAJAR", "n_trans": 56}, {"sku": 50086329, "nombre": "FOLDER DE POLIPROPILENO V/COL", "clase": "FOLDERS DE POLIPROPILENO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -0.059, "p_value": 0.9474, "clasificacion": "Inelastico", "costo": 8.9, "precio_actual": 26.15, "precio_min_hist": 16.84, "precio_max_hist": 32.41, "unidades_hist": 154, "precio_recomendado": 28.76, "accion": "SUBIR_DIRECCIONAL", "n_trans": 77}, {"sku": 50094195, "nombre": "REFUERZO CARP ROJO 210P OMX", "clase": "REFUERZOS PARA CARPETA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -10.373, "p_value": 0.0001, "clasificacion": "ELASTICO", "costo": 21.48, "precio_actual": 35.16, "precio_min_hist": 29.23, "precio_max_hist": 36.12, "unidades_hist": 36, "precio_recomendado": 23.77, "accion": "BAJAR", "n_trans": 31}, {"sku": 50061745, "nombre": "FOLDER OMX CARTA KRAFT 25PK", "clase": "FOLDERS KRAFT", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -2.921, "p_value": 0.0624, "clasificacion": "ELASTICO", "costo": 37.72, "precio_actual": 77.98, "precio_min_hist": 54.25, "precio_max_hist": 86.12, "unidades_hist": 37, "precio_recomendado": 57.35, "accion": "BAJAR", "n_trans": 32}, {"sku": 50011911, "nombre": "TARJETA INDICE BLANCA 4X6 100P", "clase": "TARJETAS INDICE BLANCAS", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": -2.918, "p_value": 0.0037, "clasificacion": "ELASTICO", "costo": 19.13, "precio_actual": 35.99, "precio_min_hist": 34.91, "precio_max_hist": 38.71, "unidades_hist": 52, "precio_recomendado": 29.1, "accion": "BAJAR", "n_trans": 41}, {"sku": 50116770, "nombre": "ARCHIVERO EXPAND STUK ROSA 5D", "clase": "FOLDERS DE POLIPROPILENO", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -4.031, "p_value": 0.0, "clasificacion": "ELASTICO", "costo": 39.76, "precio_actual": 73.01, "precio_min_hist": 42.29, "precio_max_hist": 102.59, "unidades_hist": 59, "precio_recomendado": 52.87, "accion": "BAJAR", "n_trans": 58}, {"sku": 50029456, "nombre": "TARJETA INDI RAYADA 5X8 OXFORD", "clase": "TARJETAS RAYA Y CUADRO", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": -0.191, "p_value": 0.9382, "clasificacion": "Inelastico", "costo": 34.36, "precio_actual": 57.41, "precio_min_hist": 39.77, "precio_max_hist": 60.26, "unidades_hist": 35, "precio_recomendado": 63.15, "accion": "SUBIR_DIRECCIONAL", "n_trans": 30}, {"sku": 50061735, "nombre": "FOLDER OMX CARTA MANILA 100PK", "clase": "FOLDERS MANILA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.298, "p_value": 0.7946, "clasificacion": "Sin_reaccion", "costo": 152.04, "precio_actual": 197.95, "precio_min_hist": 138.19, "precio_max_hist": 225.93, "unidades_hist": 255, "precio_recomendado": 197.95, "accion": "MANTENER", "n_trans": 225}, {"sku": 50031938, "nombre": "FOLDER OMX CARTA MANILA 25PK", "clase": "FOLDERS MANILA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -5.261, "p_value": 0.0, "clasificacion": "ELASTICO", "costo": 42.26, "precio_actual": 66.35, "precio_min_hist": 44.66, "precio_max_hist": 94.83, "unidades_hist": 146, "precio_recomendado": 52.18, "accion": "BAJAR", "n_trans": 129}, {"sku": 50031939, "nombre": "FOLDER OMX OFICIO MANILA 25PK", "clase": "FOLDERS MANILA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -0.261, "p_value": 0.7335, "clasificacion": "Inelastico", "costo": 51.32, "precio_actual": 93.48, "precio_min_hist": 70.6, "precio_max_hist": 108.33, "unidades_hist": 41, "precio_recomendado": 102.83, "accion": "SUBIR_DIRECCIONAL", "n_trans": 38}, {"sku": 50061747, "nombre": "FOLDER OMXOFICIO MANILA 100PK", "clase": "FOLDERS MANILA", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": null, "p_value": null, "clasificacion": "Sin datos", "costo": 169.06, "precio_actual": 222.44, "precio_min_hist": 188.32, "precio_max_hist": 249.08, "unidades_hist": 52, "precio_recomendado": 222.44, "accion": "MANTENER", "n_trans": 45}, {"sku": 50066388, "nombre": "CAJA ARCHIVO REGISTRADOR OFFIC", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -8.009, "p_value": 0.0, "clasificacion": "ELASTICO", "costo": 37.1, "precio_actual": 51.62, "precio_min_hist": 50.86, "precio_max_hist": 64.72, "unidades_hist": 290, "precio_recomendado": 42.4, "accion": "BAJAR", "n_trans": 99}, {"sku": 50099645, "nombre": "CAJA NO. 1 25 X 25 X 25", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "NIKOROS", "beta": -0.556, "p_value": 0.3717, "clasificacion": "Inelastico", "costo": 12.29, "precio_actual": 25.77, "precio_min_hist": 12.28, "precio_max_hist": 32.32, "unidades_hist": 264, "precio_recomendado": 28.35, "accion": "SUBIR_DIRECCIONAL", "n_trans": 141}, {"sku": 50099648, "nombre": "CAJA NO.4 50 X 50 X 50", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": 0.255, "p_value": 0.8928, "clasificacion": "Sin_reaccion", "costo": 50.29, "precio_actual": 82.74, "precio_min_hist": 53.97, "precio_max_hist": 92.5, "unidades_hist": 614, "precio_recomendado": 82.74, "accion": "MANTENER", "n_trans": 240}, {"sku": 50066389, "nombre": "CAJA ARCHIVO TAMA#O CARTA", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.1, "p_value": 0.8823, "clasificacion": "Sin_reaccion", "costo": 33.12, "precio_actual": 44.29, "precio_min_hist": 28.68, "precio_max_hist": 55.46, "unidades_hist": 766, "precio_recomendado": 44.29, "accion": "MANTENER", "n_trans": 242}, {"sku": 50066390, "nombre": "CAJA ARCHIVO OFICIO OFFICEMAX", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 1.947, "p_value": 0.0335, "clasificacion": "Sin_reaccion", "costo": 37.78, "precio_actual": 51.84, "precio_min_hist": 34.43, "precio_max_hist": 60.26, "unidades_hist": 922, "precio_recomendado": 51.84, "accion": "INVESTIGAR", "n_trans": 222}, {"sku": 50099646, "nombre": "CAJA NO. 2 50 X 25 X 25", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -0.635, "p_value": 0.156, "clasificacion": "Inelastico", "costo": 17.93, "precio_actual": 34.92, "precio_min_hist": 25.18, "precio_max_hist": 41.57, "unidades_hist": 283, "precio_recomendado": 38.41, "accion": "SUBIR_DIRECCIONAL", "n_trans": 117}, {"sku": 50099647, "nombre": "CAJA NO. 3 50 X 50 X 25", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": 1.387, "p_value": 0.0034, "clasificacion": "Sin_reaccion", "costo": 33.8, "precio_actual": 68.16, "precio_min_hist": 40.17, "precio_max_hist": 83.24, "unidades_hist": 368, "precio_recomendado": 68.16, "accion": "INVESTIGAR", "n_trans": 170}, {"sku": 50063372, "nombre": "CAJA DE ARCHIVO OXFORD OFICIO", "clase": "CAJAS DE ARCHIVO", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": 4.823, "p_value": 0.0006, "clasificacion": "Sin_reaccion", "costo": 38.26, "precio_actual": 60.82, "precio_min_hist": 49.66, "precio_max_hist": 69.35, "unidades_hist": 157, "precio_recomendado": 60.82, "accion": "INVESTIGAR", "n_trans": 45}, {"sku": 50068606, "nombre": "ETIQUETA BCA 20X105MM 168PZA/PQT", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": -1.235, "p_value": 0.0222, "clasificacion": "ELASTICO", "costo": 14.52, "precio_actual": 28.1, "precio_min_hist": 23.54, "precio_max_hist": 34.4, "unidades_hist": 63, "precio_recomendado": 76.35, "accion": "SUBIR", "n_trans": 41}, {"sku": 50068611, "nombre": "ETIQUETA BCA 19X38 420PZA/PQTE", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": 1.783, "p_value": 0.0145, "clasificacion": "Sin_reaccion", "costo": 14.52, "precio_actual": 28.44, "precio_min_hist": 17.44, "precio_max_hist": 34.4, "unidades_hist": 69, "precio_recomendado": 28.44, "accion": "INVESTIGAR", "n_trans": 34}, {"sku": 50094185, "nombre": "ETIQUETAS REDONDA MIXTAS 504P", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "AVERY", "beta": null, "p_value": null, "clasificacion": "Sin datos", "costo": 18.12, "precio_actual": 32.43, "precio_min_hist": 22.87, "precio_max_hist": 35.09, "unidades_hist": 66, "precio_recomendado": 32.43, "accion": "MANTENER", "n_trans": 53}, {"sku": 50068608, "nombre": "ETIQUETA BCA 32X64 144PZA/PQT", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": 1.947, "p_value": 0.0001, "clasificacion": "Sin_reaccion", "costo": 14.52, "precio_actual": 29.75, "precio_min_hist": 18.68, "precio_max_hist": 36.94, "unidades_hist": 81, "precio_recomendado": 29.75, "accion": "INVESTIGAR", "n_trans": 48}, {"sku": 50068605, "nombre": "ETIQUETA BLANCA ECONOPACK 50X100 JANEL", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": 1.367, "p_value": 0.007, "clasificacion": "Sin_reaccion", "costo": 14.71, "precio_actual": 29.24, "precio_min_hist": 17.44, "precio_max_hist": 36.94, "unidades_hist": 119, "precio_recomendado": 29.24, "accion": "INVESTIGAR", "n_trans": 77}, {"sku": 50068613, "nombre": "ETIQUETA BCA 13X38 600PZA/PQTE", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": -0.967, "p_value": 0.1456, "clasificacion": "Inelastico", "costo": 14.52, "precio_actual": 28.06, "precio_min_hist": 17.44, "precio_max_hist": 36.94, "unidades_hist": 93, "precio_recomendado": 30.86, "accion": "SUBIR_DIRECCIONAL", "n_trans": 62}, {"sku": 50068607, "nombre": "ETIQUETA BCA 08X20 1512PZA/PQT", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": -1.629, "p_value": 0.0004, "clasificacion": "ELASTICO", "costo": 14.71, "precio_actual": 27.56, "precio_min_hist": 17.44, "precio_max_hist": 34.4, "unidades_hist": 44, "precio_recomendado": 38.11, "accion": "SUBIR", "n_trans": 33}, {"sku": 50056533, "nombre": "ETIQUETA ADH CIR RJA 3/4", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "AVERY", "beta": 2.258, "p_value": 0.0779, "clasificacion": "Sin_reaccion", "costo": 71.23, "precio_actual": 101.87, "precio_min_hist": 75.17, "precio_max_hist": 119.44, "unidades_hist": 50, "precio_recomendado": 101.87, "accion": "MANTENER", "n_trans": 40}, {"sku": 50068612, "nombre": "ETIQUETA BLANCA ECONOPACK 19X50 JANEL", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "JANEL", "beta": -1.769, "p_value": 0.0021, "clasificacion": "ELASTICO", "costo": 14.52, "precio_actual": 28.39, "precio_min_hist": 17.44, "precio_max_hist": 36.94, "unidades_hist": 81, "precio_recomendado": 33.4, "accion": "SUBIR", "n_trans": 50}, {"sku": 50020493, "nombre": "ETIQUETA ADH CIR CLR 3/4\" 100", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "AVERY", "beta": 4.393, "p_value": 0.0004, "clasificacion": "Sin_reaccion", "costo": 68.76, "precio_actual": 97.16, "precio_min_hist": 68.9, "precio_max_hist": 113.89, "unidades_hist": 64, "precio_recomendado": 97.16, "accion": "INVESTIGAR", "n_trans": 58}, {"sku": 50020492, "nombre": "ETIQUETA ADH CIR VDE 3/4\" 1008", "clase": "ETIQUETAS ADHESIVAS", "tipo_marca": "Marca Externa", "marca": "AVERY", "beta": -0.336, "p_value": 0.5845, "clasificacion": "Inelastico", "costo": 71.23, "precio_actual": 101.19, "precio_min_hist": 65.77, "precio_max_hist": 111.94, "unidades_hist": 76, "precio_recomendado": 111.31, "accion": "SUBIR_DIRECCIONAL", "n_trans": 52}, {"sku": 50062188, "nombre": "ARCHIVERO ABAT 3DV COLORES OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -0.647, "p_value": 0.5331, "clasificacion": "Inelastico", "costo": 25.78, "precio_actual": 73.65, "precio_min_hist": 46.29, "precio_max_hist": 82.87, "unidades_hist": 92, "precio_recomendado": 81.02, "accion": "SUBIR_DIRECCIONAL", "n_trans": 80}, {"sku": 50062187, "nombre": "ARCHIVERO EXPAND NG TO 13D OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": -3.212, "p_value": 0.126, "clasificacion": "Elastico_NS", "costo": 55.9, "precio_actual": 132.82, "precio_min_hist": 99.57, "precio_max_hist": 156.48, "unidades_hist": 163, "precio_recomendado": 132.82, "accion": "MANTENER", "n_trans": 125}, {"sku": 50062034, "nombre": "ARCHIVERO EXPAN KRAFT 21DV OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.205, "p_value": 0.8369, "clasificacion": "Sin_reaccion", "costo": 131.54, "precio_actual": 257.9, "precio_min_hist": 180.43, "precio_max_hist": 304.63, "unidades_hist": 156, "precio_recomendado": 257.9, "accion": "MANTENER", "n_trans": 133}, {"sku": 50125168, "nombre": "ARCHIVO EXPANDIBLE 13DIV PLATA AZUL STUK", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -0.771, "p_value": 0.2514, "clasificacion": "Inelastico", "costo": 80.24, "precio_actual": 141.87, "precio_min_hist": 85.78, "precio_max_hist": 184.26, "unidades_hist": 32, "precio_recomendado": 156.05, "accion": "SUBIR_DIRECCIONAL", "n_trans": 32}, {"sku": 50086322, "nombre": "ARCHIVERO ABATIBLE C/TRANS PZA", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -6.496, "p_value": 0.0984, "clasificacion": "ELASTICO", "costo": 40.24, "precio_actual": 120.79, "precio_min_hist": 83.88, "precio_max_hist": 134.26, "unidades_hist": 85, "precio_recomendado": 47.56, "accion": "BAJAR", "n_trans": 53}, {"sku": 50062186, "nombre": "ARCHIVERO EXPAND NG TC 13D OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.29, "p_value": 0.7384, "clasificacion": "Sin_reaccion", "costo": 48.8, "precio_actual": 138.52, "precio_min_hist": 89.74, "precio_max_hist": 150.86, "unidades_hist": 55, "precio_recomendado": 138.52, "accion": "MANTENER", "n_trans": 47}, {"sku": 50066250, "nombre": "ARCHIVERO EXP T/C 13DIV CLRS", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": 3.662, "p_value": 0.0005, "clasificacion": "Sin_reaccion", "costo": 91.86, "precio_actual": 179.83, "precio_min_hist": 123.71, "precio_max_hist": 199.54, "unidades_hist": 65, "precio_recomendado": 179.83, "accion": "INVESTIGAR", "n_trans": 60}, {"sku": 50061600, "nombre": "ARCHIVERO EXPANDIBLE 13DIV OFI", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": 5.465, "p_value": 0.0015, "clasificacion": "Sin_reaccion", "costo": 131.2, "precio_actual": 174.08, "precio_min_hist": 121.9, "precio_max_hist": 187.04, "unidades_hist": 38, "precio_recomendado": 174.08, "accion": "INVESTIGAR", "n_trans": 34}, {"sku": 50066347, "nombre": "ARCHIVERO EXPA 13D TC C/LIGA N", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": -4.263, "p_value": 0.263, "clasificacion": "Elastico_NS", "costo": 75.11, "precio_actual": 153.78, "precio_min_hist": 108.02, "precio_max_hist": 175.0, "unidades_hist": 95, "precio_recomendado": 153.78, "accion": "MANTENER", "n_trans": 86}, {"sku": 50125508, "nombre": "ARCHIVERO EXP STUK BUTTERFLY 8DIV", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -10.564, "p_value": 0.0, "clasificacion": "ELASTICO", "costo": 39.38, "precio_actual": 77.46, "precio_min_hist": 46.98, "precio_max_hist": 93.97, "unidades_hist": 41, "precio_recomendado": 43.5, "accion": "BAJAR", "n_trans": 37}, {"sku": 50062265, "nombre": "ARCHIVERO PORT EXPAN NG 21D OM", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OFFICEMAX", "beta": null, "p_value": null, "clasificacion": "Sin datos", "costo": 92.57, "precio_actual": 189.28, "precio_min_hist": 180.17, "precio_max_hist": 202.78, "unidades_hist": 82, "precio_recomendado": 189.28, "accion": "MANTENER", "n_trans": 69}, {"sku": 50061989, "nombre": "ARCHIVERO EXPAN TC 13DIV OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.336, "p_value": 0.8693, "clasificacion": "Sin_reaccion", "costo": 62.05, "precio_actual": 151.85, "precio_min_hist": 105.6, "precio_max_hist": 167.24, "unidades_hist": 107, "precio_recomendado": 151.85, "accion": "MANTENER", "n_trans": 96}, {"sku": 50040889, "nombre": "ARCHIVO EXPAND TC 12DIV NEGRO", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Externa", "marca": "OXFORD", "beta": 3.002, "p_value": 0.336, "clasificacion": "Sin_reaccion", "costo": 143.04, "precio_actual": 206.35, "precio_min_hist": 141.81, "precio_max_hist": 230.56, "unidades_hist": 39, "precio_recomendado": 206.35, "accion": "MANTENER", "n_trans": 38}, {"sku": 50116435, "nombre": "ARCHIVERO EXPANDIBLE ECO STUK", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -0.322, "p_value": 0.4027, "clasificacion": "Inelastico", "costo": 96.52, "precio_actual": 187.3, "precio_min_hist": 89.31, "precio_max_hist": 240.52, "unidades_hist": 44, "precio_recomendado": 206.03, "accion": "SUBIR_DIRECCIONAL", "n_trans": 37}, {"sku": 50062262, "nombre": "ARCHIVERO EXPA CT 7DV CLRS OMX", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "OFFICEMAX", "beta": 0.837, "p_value": 0.3632, "clasificacion": "Sin_reaccion", "costo": 35.88, "precio_actual": 98.56, "precio_min_hist": 65.78, "precio_max_hist": 111.21, "unidades_hist": 74, "precio_recomendado": 98.56, "accion": "MANTENER", "n_trans": 68}, {"sku": 50125485, "nombre": "ARCHIVERO EXP STUK SMILEY 8DIV", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": 1.6, "p_value": 0.1098, "clasificacion": "Sin_reaccion", "costo": 39.38, "precio_actual": 79.27, "precio_min_hist": 46.98, "precio_max_hist": 100.93, "unidades_hist": 47, "precio_recomendado": 79.27, "accion": "MANTENER", "n_trans": 44}, {"sku": 50125170, "nombre": "ARCHIVO EXPANDIBLE 13DIV AZUL STUK", "clase": "ARCHIVOS EXPANDIBLES", "tipo_marca": "Marca Propia", "marca": "STUK", "beta": -2.05, "p_value": 0.6146, "clasificacion": "Elastico_NS", "costo": 69.17, "precio_actual": 91.19, "precio_min_hist": 65.77, "precio_max_hist": 100.93, "unidades_hist": 39, "precio_recomendado": 91.19, "accion": "MANTENER", "n_trans": 36}];
+// ════════════════════════════════════════════════════════════════════
+// DEMO DATA — 51 SKUs OfficeMax (betas pre-calculadas)
+// ════════════════════════════════════════════════════════════════════
+const SKUS_DATA = [{"sku":50094200,"nombre":"REFUERZO CARP BLANCO 210P OMX","clase":"REFUERZOS PARA CARPETA","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":9.317,"p_value":0.0252,"r2":null,"clasificacion":"Sin_reaccion","costo":21.48,"precio_actual":36.08,"precio_min_hist":26.49,"precio_max_hist":40.65,"unidades_hist":97,"precio_recomendado":36.08,"accion":"MANTENER","n_trans":77},{"sku":50076882,"nombre":"ETIQUETA OMX BLANCA CARTA 50PZ","clase":"ETIQUETAS DE IMPRESION","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":1.282,"p_value":0.5178,"r2":null,"clasificacion":"Sin_reaccion","costo":122.16,"precio_actual":179.53,"precio_min_hist":123.71,"precio_max_hist":202.78,"unidades_hist":322,"precio_recomendado":179.53,"accion":"MANTENER","n_trans":255},{"sku":50049770,"nombre":"ETIQUETA CARTA BLANCA 50P","clase":"ETIQUETAS ESPECIALES","tipo_marca":"Marca Externa","marca":"POCHTECA","beta":-5.082,"p_value":0.0118,"r2":null,"clasificacion":"ELASTICO","costo":207.54,"precio_actual":249.33,"precio_min_hist":180.43,"precio_max_hist":276.85,"unidades_hist":95,"precio_recomendado":258.38,"accion":"MANTENER","n_trans":68},{"sku":50011910,"nombre":"TARJETA OXFORD IND BLANCA 100P","clase":"TARJETAS INDICE BLANCAS","tipo_marca":"Marca Externa","marca":"OXFORD","beta":1.358,"p_value":0.2936,"r2":null,"clasificacion":"Sin_reaccion","costo":9.38,"precio_actual":21.11,"precio_min_hist":15.02,"precio_max_hist":21.47,"unidades_hist":78,"precio_recomendado":21.11,"accion":"MANTENER","n_trans":66},{"sku":50094187,"nombre":"REFUERZO CARP AZUL 210P OMX","clase":"REFUERZOS PARA CARPETA","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":-5.137,"p_value":0.0006,"r2":null,"clasificacion":"ELASTICO","costo":24.84,"precio_actual":33.8,"precio_min_hist":26.49,"precio_max_hist":40.65,"unidades_hist":67,"precio_recomendado":30.84,"accion":"BAJAR","n_trans":56},{"sku":50086329,"nombre":"FOLDER DE POLIPROPILENO V/COL","clase":"FOLDERS DE POLIPROPILENO","tipo_marca":"Marca Externa","marca":"OFFICEMAX","beta":-0.059,"p_value":0.9474,"r2":null,"clasificacion":"Inelastico","costo":8.9,"precio_actual":26.15,"precio_min_hist":16.84,"precio_max_hist":32.41,"unidades_hist":154,"precio_recomendado":28.76,"accion":"SUBIR_DIRECCIONAL","n_trans":77},{"sku":50094195,"nombre":"REFUERZO CARP ROJO 210P OMX","clase":"REFUERZOS PARA CARPETA","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":-10.373,"p_value":0.0001,"r2":null,"clasificacion":"ELASTICO","costo":21.48,"precio_actual":35.16,"precio_min_hist":29.23,"precio_max_hist":36.12,"unidades_hist":36,"precio_recomendado":23.77,"accion":"BAJAR","n_trans":31},{"sku":50061745,"nombre":"FOLDER OMX CARTA KRAFT 25PK","clase":"FOLDERS KRAFT","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":-2.921,"p_value":0.0624,"r2":null,"clasificacion":"ELASTICO","costo":37.72,"precio_actual":77.98,"precio_min_hist":54.25,"precio_max_hist":86.12,"unidades_hist":37,"precio_recomendado":57.35,"accion":"BAJAR","n_trans":32},{"sku":50011911,"nombre":"TARJETA INDICE BLANCA 4X6 100P","clase":"TARJETAS INDICE BLANCAS","tipo_marca":"Marca Externa","marca":"OXFORD","beta":-2.918,"p_value":0.0037,"r2":null,"clasificacion":"ELASTICO","costo":19.13,"precio_actual":35.99,"precio_min_hist":34.91,"precio_max_hist":38.71,"unidades_hist":52,"precio_recomendado":29.1,"accion":"BAJAR","n_trans":41},{"sku":50116770,"nombre":"ARCHIVERO EXPAND STUK ROSA 5D","clase":"FOLDERS DE POLIPROPILENO","tipo_marca":"Marca Propia","marca":"STUK","beta":-4.031,"p_value":0.0,"r2":null,"clasificacion":"ELASTICO","costo":39.76,"precio_actual":73.01,"precio_min_hist":42.29,"precio_max_hist":102.59,"unidades_hist":59,"precio_recomendado":52.87,"accion":"BAJAR","n_trans":58},{"sku":50029456,"nombre":"TARJETA INDI RAYADA 5X8 OXFORD","clase":"TARJETAS RAYA Y CUADRO","tipo_marca":"Marca Externa","marca":"OXFORD","beta":-0.191,"p_value":0.9382,"r2":null,"clasificacion":"Inelastico","costo":34.36,"precio_actual":57.41,"precio_min_hist":39.77,"precio_max_hist":60.26,"unidades_hist":35,"precio_recomendado":63.15,"accion":"SUBIR_DIRECCIONAL","n_trans":30},{"sku":50061735,"nombre":"FOLDER OMX CARTA MANILA 100PK","clase":"FOLDERS MANILA","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":0.298,"p_value":0.7946,"r2":null,"clasificacion":"Sin_reaccion","costo":152.04,"precio_actual":197.95,"precio_min_hist":138.19,"precio_max_hist":225.93,"unidades_hist":255,"precio_recomendado":197.95,"accion":"MANTENER","n_trans":225},{"sku":50031938,"nombre":"FOLDER OMX CARTA MANILA 25PK","clase":"FOLDERS MANILA","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":-5.261,"p_value":0.0,"r2":null,"clasificacion":"ELASTICO","costo":42.26,"precio_actual":66.35,"precio_min_hist":44.66,"precio_max_hist":94.83,"unidades_hist":146,"precio_recomendado":52.18,"accion":"BAJAR","n_trans":129},{"sku":50031939,"nombre":"FOLDER OMX OFICIO MANILA 25PK","clase":"FOLDERS MANILA","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":-0.261,"p_value":0.7335,"r2":null,"clasificacion":"Inelastico","costo":51.32,"precio_actual":93.48,"precio_min_hist":70.6,"precio_max_hist":108.33,"unidades_hist":41,"precio_recomendado":102.83,"accion":"SUBIR_DIRECCIONAL","n_trans":38},{"sku":50061747,"nombre":"FOLDER OMX OFICIO MANILA 100PK","clase":"FOLDERS MANILA","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":null,"p_value":null,"r2":null,"clasificacion":"Sin datos","costo":169.06,"precio_actual":222.44,"precio_min_hist":188.32,"precio_max_hist":249.08,"unidades_hist":52,"precio_recomendado":222.44,"accion":"MANTENER","n_trans":45},{"sku":50066388,"nombre":"CAJA ARCHIVO REGISTRADOR OFFIC","clase":"CAJAS DE ARCHIVO","tipo_marca":"Marca Externa","marca":"OFFICEMAX","beta":-8.009,"p_value":0.0,"r2":null,"clasificacion":"ELASTICO","costo":37.1,"precio_actual":51.62,"precio_min_hist":50.86,"precio_max_hist":64.72,"unidades_hist":290,"precio_recomendado":42.4,"accion":"BAJAR","n_trans":99},{"sku":50099645,"nombre":"CAJA NO. 1 25 X 25 X 25","clase":"CAJAS DE ARCHIVO","tipo_marca":"Marca Externa","marca":"NIKOROS","beta":-0.556,"p_value":0.3717,"r2":null,"clasificacion":"Inelastico","costo":12.29,"precio_actual":25.77,"precio_min_hist":12.28,"precio_max_hist":32.32,"unidades_hist":264,"precio_recomendado":28.35,"accion":"SUBIR_DIRECCIONAL","n_trans":141},{"sku":50099648,"nombre":"CAJA NO.4 50 X 50 X 50","clase":"CAJAS DE ARCHIVO","tipo_marca":"Marca Externa","marca":"OFFICEMAX","beta":0.255,"p_value":0.8928,"r2":null,"clasificacion":"Sin_reaccion","costo":50.29,"precio_actual":82.74,"precio_min_hist":53.97,"precio_max_hist":92.5,"unidades_hist":614,"precio_recomendado":82.74,"accion":"MANTENER","n_trans":240},{"sku":50066389,"nombre":"CAJA ARCHIVO TAMAÑO CARTA","clase":"CAJAS DE ARCHIVO","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":0.1,"p_value":0.8823,"r2":null,"clasificacion":"Sin_reaccion","costo":33.12,"precio_actual":44.29,"precio_min_hist":28.68,"precio_max_hist":55.46,"unidades_hist":766,"precio_recomendado":44.29,"accion":"MANTENER","n_trans":242},{"sku":50066390,"nombre":"CAJA ARCHIVO OFICIO OFFICEMAX","clase":"CAJAS DE ARCHIVO","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":1.947,"p_value":0.0335,"r2":null,"clasificacion":"Sin_reaccion","costo":37.78,"precio_actual":51.84,"precio_min_hist":34.43,"precio_max_hist":60.26,"unidades_hist":922,"precio_recomendado":51.84,"accion":"MANTENER","n_trans":222},{"sku":50099646,"nombre":"CAJA NO. 2 50 X 25 X 25","clase":"CAJAS DE ARCHIVO","tipo_marca":"Marca Externa","marca":"OFFICEMAX","beta":-0.635,"p_value":0.156,"r2":null,"clasificacion":"Inelastico","costo":17.93,"precio_actual":34.92,"precio_min_hist":25.18,"precio_max_hist":41.57,"unidades_hist":283,"precio_recomendado":38.41,"accion":"SUBIR_DIRECCIONAL","n_trans":117},{"sku":50099647,"nombre":"CAJA NO. 3 50 X 50 X 25","clase":"CAJAS DE ARCHIVO","tipo_marca":"Marca Externa","marca":"OFFICEMAX","beta":1.387,"p_value":0.0034,"r2":null,"clasificacion":"Sin_reaccion","costo":33.8,"precio_actual":68.16,"precio_min_hist":40.17,"precio_max_hist":83.24,"unidades_hist":368,"precio_recomendado":68.16,"accion":"MANTENER","n_trans":170},{"sku":50063372,"nombre":"CAJA DE ARCHIVO OXFORD OFICIO","clase":"CAJAS DE ARCHIVO","tipo_marca":"Marca Externa","marca":"OXFORD","beta":4.823,"p_value":0.0006,"r2":null,"clasificacion":"Sin_reaccion","costo":38.26,"precio_actual":60.82,"precio_min_hist":49.66,"precio_max_hist":69.35,"unidades_hist":157,"precio_recomendado":60.82,"accion":"MANTENER","n_trans":45},{"sku":50068606,"nombre":"ETIQUETA BCA 20X105MM 168PZA/PQT","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"JANEL","beta":-1.235,"p_value":0.0222,"r2":null,"clasificacion":"ELASTICO","costo":14.52,"precio_actual":28.1,"precio_min_hist":23.54,"precio_max_hist":34.4,"unidades_hist":63,"precio_recomendado":76.35,"accion":"SUBIR","n_trans":41},{"sku":50068611,"nombre":"ETIQUETA BCA 19X38 420PZA/PQTE","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"JANEL","beta":1.783,"p_value":0.0145,"r2":null,"clasificacion":"Sin_reaccion","costo":14.52,"precio_actual":28.44,"precio_min_hist":17.44,"precio_max_hist":34.4,"unidades_hist":69,"precio_recomendado":28.44,"accion":"MANTENER","n_trans":34},{"sku":50094185,"nombre":"ETIQUETAS REDONDA MIXTAS 504P","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"AVERY","beta":null,"p_value":null,"r2":null,"clasificacion":"Sin datos","costo":18.12,"precio_actual":32.43,"precio_min_hist":22.87,"precio_max_hist":35.09,"unidades_hist":66,"precio_recomendado":32.43,"accion":"MANTENER","n_trans":53},{"sku":50068608,"nombre":"ETIQUETA BCA 32X64 144PZA/PQT","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"JANEL","beta":1.947,"p_value":0.0001,"r2":null,"clasificacion":"Sin_reaccion","costo":14.52,"precio_actual":29.75,"precio_min_hist":18.68,"precio_max_hist":36.94,"unidades_hist":81,"precio_recomendado":29.75,"accion":"MANTENER","n_trans":48},{"sku":50068605,"nombre":"ETIQUETA BLANCA ECONOPACK 50X100 JANEL","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"JANEL","beta":1.367,"p_value":0.007,"r2":null,"clasificacion":"Sin_reaccion","costo":14.71,"precio_actual":29.24,"precio_min_hist":17.44,"precio_max_hist":36.94,"unidades_hist":119,"precio_recomendado":29.24,"accion":"MANTENER","n_trans":77},{"sku":50068613,"nombre":"ETIQUETA BCA 13X38 600PZA/PQTE","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"JANEL","beta":-0.967,"p_value":0.1456,"r2":null,"clasificacion":"Inelastico","costo":14.52,"precio_actual":28.06,"precio_min_hist":17.44,"precio_max_hist":36.94,"unidades_hist":93,"precio_recomendado":30.86,"accion":"SUBIR_DIRECCIONAL","n_trans":62},{"sku":50068607,"nombre":"ETIQUETA BCA 08X20 1512PZA/PQT","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"JANEL","beta":-1.629,"p_value":0.0004,"r2":null,"clasificacion":"ELASTICO","costo":14.71,"precio_actual":27.56,"precio_min_hist":17.44,"precio_max_hist":34.4,"unidades_hist":44,"precio_recomendado":38.11,"accion":"SUBIR","n_trans":33},{"sku":50056533,"nombre":"ETIQUETA ADH CIR RJA 3/4","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"AVERY","beta":2.258,"p_value":0.0779,"r2":null,"clasificacion":"Sin_reaccion","costo":71.23,"precio_actual":101.87,"precio_min_hist":75.17,"precio_max_hist":119.44,"unidades_hist":50,"precio_recomendado":101.87,"accion":"MANTENER","n_trans":40},{"sku":50068612,"nombre":"ETIQUETA BLANCA ECONOPACK 19X50 JANEL","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"JANEL","beta":-1.769,"p_value":0.0021,"r2":null,"clasificacion":"ELASTICO","costo":14.52,"precio_actual":28.39,"precio_min_hist":17.44,"precio_max_hist":36.94,"unidades_hist":81,"precio_recomendado":33.4,"accion":"SUBIR","n_trans":50},{"sku":50020493,"nombre":"ETIQUETA ADH CIR CLR 3/4 100","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"AVERY","beta":4.393,"p_value":0.0004,"r2":null,"clasificacion":"Sin_reaccion","costo":68.76,"precio_actual":97.16,"precio_min_hist":68.9,"precio_max_hist":113.89,"unidades_hist":64,"precio_recomendado":97.16,"accion":"MANTENER","n_trans":58},{"sku":50020492,"nombre":"ETIQUETA ADH CIR VDE 3/4 1008","clase":"ETIQUETAS ADHESIVAS","tipo_marca":"Marca Externa","marca":"AVERY","beta":-0.336,"p_value":0.5845,"r2":null,"clasificacion":"Inelastico","costo":71.23,"precio_actual":101.19,"precio_min_hist":65.77,"precio_max_hist":111.94,"unidades_hist":76,"precio_recomendado":111.31,"accion":"SUBIR_DIRECCIONAL","n_trans":52},{"sku":50062188,"nombre":"ARCHIVERO ABAT 3DV COLORES OMX","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":-0.647,"p_value":0.5331,"r2":null,"clasificacion":"Inelastico","costo":25.78,"precio_actual":73.65,"precio_min_hist":46.29,"precio_max_hist":82.87,"unidades_hist":92,"precio_recomendado":81.02,"accion":"SUBIR_DIRECCIONAL","n_trans":80},{"sku":50062187,"nombre":"ARCHIVERO EXPAND NG TO 13D OMX","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":-3.212,"p_value":0.126,"r2":null,"clasificacion":"Elastico_NS","costo":55.9,"precio_actual":132.82,"precio_min_hist":99.57,"precio_max_hist":156.48,"unidades_hist":163,"precio_recomendado":132.82,"accion":"MANTENER","n_trans":125},{"sku":50062034,"nombre":"ARCHIVERO EXPAN KRAFT 21DV OMX","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":0.205,"p_value":0.8369,"r2":null,"clasificacion":"Sin_reaccion","costo":131.54,"precio_actual":257.9,"precio_min_hist":180.43,"precio_max_hist":304.63,"unidades_hist":156,"precio_recomendado":257.9,"accion":"MANTENER","n_trans":133},{"sku":50125168,"nombre":"ARCHIVO EXPANDIBLE 13DIV PLATA AZUL STUK","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"STUK","beta":-0.771,"p_value":0.2514,"r2":null,"clasificacion":"Inelastico","costo":80.24,"precio_actual":141.87,"precio_min_hist":85.78,"precio_max_hist":184.26,"unidades_hist":32,"precio_recomendado":156.05,"accion":"SUBIR_DIRECCIONAL","n_trans":32},{"sku":50086322,"nombre":"ARCHIVERO ABATIBLE C/TRANS PZA","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Externa","marca":"OFFICEMAX","beta":-6.496,"p_value":0.0984,"r2":null,"clasificacion":"ELASTICO","costo":40.24,"precio_actual":120.79,"precio_min_hist":83.88,"precio_max_hist":134.26,"unidades_hist":85,"precio_recomendado":47.56,"accion":"BAJAR","n_trans":53},{"sku":50062186,"nombre":"ARCHIVERO EXPAND NG TC 13D OMX","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":0.29,"p_value":0.7384,"r2":null,"clasificacion":"Sin_reaccion","costo":48.8,"precio_actual":138.52,"precio_min_hist":89.74,"precio_max_hist":150.86,"unidades_hist":55,"precio_recomendado":138.52,"accion":"MANTENER","n_trans":47},{"sku":50066250,"nombre":"ARCHIVERO EXP T/C 13DIV CLRS","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Externa","marca":"OFFICEMAX","beta":3.662,"p_value":0.0005,"r2":null,"clasificacion":"Sin_reaccion","costo":91.86,"precio_actual":179.83,"precio_min_hist":123.71,"precio_max_hist":199.54,"unidades_hist":65,"precio_recomendado":179.83,"accion":"MANTENER","n_trans":60},{"sku":50061600,"nombre":"ARCHIVERO EXPANDIBLE 13DIV OFI","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Externa","marca":"OXFORD","beta":5.465,"p_value":0.0015,"r2":null,"clasificacion":"Sin_reaccion","costo":131.2,"precio_actual":174.08,"precio_min_hist":121.9,"precio_max_hist":187.04,"unidades_hist":38,"precio_recomendado":174.08,"accion":"MANTENER","n_trans":34},{"sku":50066347,"nombre":"ARCHIVERO EXPA 13D TC C/LIGA N","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Externa","marca":"OFFICEMAX","beta":-4.263,"p_value":0.263,"r2":null,"clasificacion":"Elastico_NS","costo":75.11,"precio_actual":153.78,"precio_min_hist":108.02,"precio_max_hist":175.0,"unidades_hist":95,"precio_recomendado":153.78,"accion":"MANTENER","n_trans":86},{"sku":50125508,"nombre":"ARCHIVERO EXP STUK BUTTERFLY 8DIV","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"STUK","beta":-10.564,"p_value":0.0,"r2":null,"clasificacion":"ELASTICO","costo":39.38,"precio_actual":77.46,"precio_min_hist":46.98,"precio_max_hist":93.97,"unidades_hist":41,"precio_recomendado":43.5,"accion":"BAJAR","n_trans":37},{"sku":50062265,"nombre":"ARCHIVERO PORT EXPAN NG 21D OM","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Externa","marca":"OFFICEMAX","beta":null,"p_value":null,"r2":null,"clasificacion":"Sin datos","costo":92.57,"precio_actual":189.28,"precio_min_hist":180.17,"precio_max_hist":202.78,"unidades_hist":82,"precio_recomendado":189.28,"accion":"MANTENER","n_trans":69},{"sku":50061989,"nombre":"ARCHIVERO EXPAN TC 13DIV OMX","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":0.336,"p_value":0.8693,"r2":null,"clasificacion":"Sin_reaccion","costo":62.05,"precio_actual":151.85,"precio_min_hist":105.6,"precio_max_hist":167.24,"unidades_hist":107,"precio_recomendado":151.85,"accion":"MANTENER","n_trans":96},{"sku":50040889,"nombre":"ARCHIVO EXPAND TC 12DIV NEGRO","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Externa","marca":"OXFORD","beta":3.002,"p_value":0.336,"r2":null,"clasificacion":"Sin_reaccion","costo":143.04,"precio_actual":206.35,"precio_min_hist":141.81,"precio_max_hist":230.56,"unidades_hist":39,"precio_recomendado":206.35,"accion":"MANTENER","n_trans":38},{"sku":50116435,"nombre":"ARCHIVERO EXPANDIBLE ECO STUK","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"STUK","beta":-0.322,"p_value":0.4027,"r2":null,"clasificacion":"Inelastico","costo":96.52,"precio_actual":187.3,"precio_min_hist":89.31,"precio_max_hist":240.52,"unidades_hist":44,"precio_recomendado":206.03,"accion":"SUBIR_DIRECCIONAL","n_trans":37},{"sku":50062262,"nombre":"ARCHIVERO EXPA CT 7DV CLRS OMX","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"OFFICEMAX","beta":0.837,"p_value":0.3632,"r2":null,"clasificacion":"Sin_reaccion","costo":35.88,"precio_actual":98.56,"precio_min_hist":65.78,"precio_max_hist":111.21,"unidades_hist":74,"precio_recomendado":98.56,"accion":"MANTENER","n_trans":68},{"sku":50125485,"nombre":"ARCHIVERO EXP STUK SMILEY 8DIV","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"STUK","beta":1.6,"p_value":0.1098,"r2":null,"clasificacion":"Sin_reaccion","costo":39.38,"precio_actual":79.27,"precio_min_hist":46.98,"precio_max_hist":100.93,"unidades_hist":47,"precio_recomendado":79.27,"accion":"MANTENER","n_trans":44},{"sku":50125170,"nombre":"ARCHIVO EXPANDIBLE 13DIV AZUL STUK","clase":"ARCHIVOS EXPANDIBLES","tipo_marca":"Marca Propia","marca":"STUK","beta":-2.05,"p_value":0.6146,"r2":null,"clasificacion":"Elastico_NS","costo":69.17,"precio_actual":91.19,"precio_min_hist":65.77,"precio_max_hist":100.93,"unidades_hist":39,"precio_recomendado":91.19,"accion":"MANTENER","n_trans":36}];
 
-// Beta mensual por SKU — el notebook debe llenar este array
-// Formato: { sku: number, mes: "YYYY-MM", beta: number, p_value: number, n_trans: number }
 const BETAS_MENSUAL = [];
 
-// ─── Config ────────────────────────────────────────────────────────────────
 const DEPT_MAP = {
   'REFUERZOS PARA CARPETA':   'Carpetas y Folders',
   'FOLDERS DE POLIPROPILENO': 'Carpetas y Folders',
@@ -410,609 +572,1074 @@ const DEPT_MAP = {
   'TARJETAS RAYA Y CUADRO':   'Tarjetas'
 };
 
-const ESCENARIOS = [-20, -10, -5, 0, 5, 10, 20];
-
-// Deduplica por SKU y enriquece con departamento
-const SKUS = [...new Map(
-  SKUS_DATA.map(s => [s.sku, { ...s, departamento: DEPT_MAP[s.clase] || 'Otros' }])
-).values()];
-
-const MESES_DISPONIBLES = [...new Set(BETAS_MENSUAL.map(b => b.mes))].sort();
-
-// ─── Estado global ─────────────────────────────────────────────────────────
-let currentSku = null;
-let currentMes = '';
-let chartSim   = null;
-let chartBeta  = null;
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
-const fmt$    = n => '$' + Math.round(n).toLocaleString('es-MX');
-const fmt$dec = n => '$' + (+n).toFixed(2);
-const fmtPct  = n => (n >= 0 ? '+' : '') + (+n).toFixed(1) + '%';
-const fmtNum  = n => Math.round(n).toLocaleString('es-MX');
-
-function getBeta(sku, mes) {
-  if (mes && BETAS_MENSUAL.length > 0) {
-    const m = BETAS_MENSUAL.find(b => b.sku === sku.sku && b.mes === mes);
-    if (m !== undefined) return m.beta;
-  }
-  return sku.beta;
+// ════════════════════════════════════════════════════════════════════
+// ESTADÍSTICA — t-distribución (Lentz) + OLS log-log
+// ════════════════════════════════════════════════════════════════════
+function logGamma(z) {
+  const c = [76.18009172947146,-86.50532032941677,24.01409824083091,
+             -1.231739572450155,0.1208650973866179e-2,-0.5395239384953e-5];
+  let y = z, tmp = z + 5.5;
+  tmp -= (z + 0.5) * Math.log(tmp);
+  let ser = 1.000000000190015;
+  for (let j = 0; j < 6; j++) ser += c[j] / ++y;
+  return -tmp + Math.log(2.5066282746310005 * ser / z);
 }
 
-function simulate(sku, deltaPct, mes) {
-  const beta     = getBeta(sku, mes !== undefined ? mes : currentMes);
-  const p_new    = sku.precio_actual * (1 + deltaPct / 100);
-  const q_raw    = beta !== null
+function betaIncomplete(a, b, x) {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  const lbeta = logGamma(a) + logGamma(b) - logGamma(a + b);
+  const bt = Math.exp(a * Math.log(x) + b * Math.log(1 - x) - lbeta);
+
+  function betaCF(a, b, x) {
+    const MAXIT = 200, EPS = 3e-7, FPMIN = 1e-30;
+    const qab = a + b, qap = a + 1, qam = a - 1;
+    let c = 1, d = 1 - qab * x / qap;
+    if (Math.abs(d) < FPMIN) d = FPMIN;
+    d = 1 / d; let h = d;
+    for (let m = 1; m <= MAXIT; m++) {
+      const m2 = 2 * m;
+      let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d; h *= d * c;
+      aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+      d = 1 + aa * d; if (Math.abs(d) < FPMIN) d = FPMIN;
+      c = 1 + aa / c; if (Math.abs(c) < FPMIN) c = FPMIN;
+      d = 1 / d; const del = d * c; h *= del;
+      if (Math.abs(del - 1) < EPS) break;
+    }
+    return h;
+  }
+  if (x < (a + 1) / (a + b + 2)) return bt * betaCF(a, b, x) / a;
+  return 1 - bt * betaCF(b, a, 1 - x) / b;
+}
+
+function tDist2Tail(t, df) {
+  if (df <= 0 || !isFinite(t)) return 1;
+  const x = df / (df + t * t);
+  return Math.min(1, Math.max(0, betaIncomplete(df / 2, 0.5, x)));
+}
+
+function olsLogLog(prices, quantities) {
+  const n = prices.length;
+  if (n < 5) return { beta: null, pValue: null, r2: null, n };
+  const x = prices.map(p => Math.log(Math.max(p, 0.01)));
+  const y = quantities.map(q => Math.log(q + 1));
+  const xBar = x.reduce((a, b) => a + b) / n;
+  const yBar = y.reduce((a, b) => a + b) / n;
+  const SSxy = x.reduce((acc, xi, i) => acc + (xi - xBar) * (y[i] - yBar), 0);
+  const SSxx = x.reduce((acc, xi) => acc + (xi - xBar) ** 2, 0);
+  const SSyy = y.reduce((acc, yi) => acc + (yi - yBar) ** 2, 0);
+  if (SSxx === 0) return { beta: null, pValue: null, r2: null, n };
+  const beta = SSxy / SSxx;
+  const alpha = yBar - beta * xBar;
+  const SSres = y.reduce((acc, yi, i) => acc + (yi - (alpha + beta * x[i])) ** 2, 0);
+  const r2 = SSyy > 0 ? 1 - SSres / SSyy : 0;
+  const s2 = n > 2 ? SSres / (n - 2) : 0;
+  const seBeta = (s2 > 0 && SSxx > 0) ? Math.sqrt(s2 / SSxx) : Infinity;
+  const tStat = isFinite(seBeta) && seBeta > 0 ? Math.abs(beta / seBeta) : 0;
+  const pValue = tDist2Tail(tStat, n - 2);
+  return { beta, pValue, r2, n };
+}
+
+function classifyElasticity(beta, pValue) {
+  if (beta === null || beta === undefined) return 'Sin datos';
+  if (beta >= 0) return 'Sin_reaccion';
+  if (beta < -1) return (pValue !== null && pValue < 0.10) ? 'ELASTICO' : 'Elastico_NS';
+  return 'Inelastico';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ════════════════════════════════════════════════════════════════════
+let APP = {
+  mode: '',          // 'demo' | 'upload'
+  rawHeaders: [],
+  rawRows: [],       // array of objects {col: value}
+  mapping: {},       // { fieldName: colName }
+  SKUS: [],          // processed SKU objects ready for dashboard
+  currentSku: null,
+  currentMes: '',
+  chartSim: null,
+  chartBeta: null,
+  planFilter: null   // 'BAJAR'|'SUBIR'|... for chip filter
+};
+
+// ════════════════════════════════════════════════════════════════════
+// UPLOAD — file handling
+// ════════════════════════════════════════════════════════════════════
+const FIELD_DEFS = [
+  { key: 'sku',          label: 'SKU / Código',       required: true,  syns: ['sku','codigo','code','clave','producto','item','upc','barcode','id_producto','id'] },
+  { key: 'precio',       label: 'Precio de venta',    required: true,  syns: ['precio','price','pvp','precio_venta','precio_unitario','sale_price','unit_price','monto'] },
+  { key: 'unidades',     label: 'Unidades vendidas',  required: true,  syns: ['unidades','qty','cantidad','units','sold','ventas','piezas','quantity','cant'] },
+  { key: 'fecha',        label: 'Fecha / Período',    required: true,  syns: ['fecha','date','mes','month','periodo','fecha_venta','periodo_venta','year_month'] },
+  { key: 'nombre',       label: 'Descripción',        required: false, syns: ['nombre','descripcion','description','desc','name','producto','product','articulo'] },
+  { key: 'clase',        label: 'Clase / Categoría',  required: false, syns: ['clase','class','category','categoria','subcategoria','subcategory','subclas'] },
+  { key: 'departamento', label: 'Departamento',       required: false, syns: ['departamento','dept','department','area','familia','linea','division'] },
+  { key: 'costo',        label: 'Costo unitario',     required: false, syns: ['costo','cost','cogs','precio_costo','coste','unit_cost','costo_unitario'] },
+  { key: 'marca',        label: 'Marca / Proveedor',  required: false, syns: ['marca','brand','proveedor','supplier','vendor','fabricante'] },
+  { key: 'descuento',    label: 'Descuento %',        required: false, syns: ['descuento','discount','dto','desc_pct','pct_descuento'] },
+  { key: 'canal',        label: 'Canal / Tienda',     required: false, syns: ['canal','channel','store','tienda','sucursal','punto_venta'] },
+  { key: 'region',       label: 'Región / Zona',      required: false, syns: ['region','zona','zone','area_geo','estado','ciudad'] }
+];
+
+function handleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['csv','xlsx','xls'].includes(ext)) {
+    showError('upload-error', 'Formato no soportado. Usa .csv, .xlsx o .xls');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let headers, rows;
+      if (ext === 'csv') {
+        ({ headers, rows } = parseCSV(e.target.result));
+      } else {
+        if (typeof XLSX === 'undefined') { showError('upload-error', 'La librería SheetJS no cargó. Verifica conexión a internet.'); return; }
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        headers = data[0].map(h => String(h).trim());
+        rows = data.slice(1).map(row => {
+          const obj = {};
+          headers.forEach((h, i) => obj[h] = row[i] !== undefined ? row[i] : '');
+          return obj;
+        });
+      }
+      if (headers.length === 0) { showError('upload-error', 'El archivo está vacío o no tiene encabezados.'); return; }
+      APP.rawHeaders = headers;
+      APP.rawRows = rows.filter(r => Object.values(r).some(v => v !== '' && v !== null && v !== undefined));
+      APP.mode = 'upload';
+      buildMappingUI();
+      showScreen('mapping');
+    } catch(err) {
+      showError('upload-error', 'Error al leer el archivo: ' + err.message);
+    }
+  };
+  if (ext === 'csv') reader.readAsText(file, 'UTF-8');
+  else reader.readAsArrayBuffer(file);
+}
+
+function parseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const sep = text.indexOf(';') > text.indexOf(',') ? ';' : ',';
+  function splitLine(line) {
+    const res = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === sep && !inQ) { res.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    res.push(cur.trim()); return res;
+  }
+  const headers = splitLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = splitLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = vals[idx] !== undefined ? vals[idx] : '');
+    rows.push(obj);
+  }
+  return { headers, rows };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MAPPING UI
+// ════════════════════════════════════════════════════════════════════
+function autoDetect(headers) {
+  const mapping = {};
+  const norm = h => h.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const used = new Set();
+  FIELD_DEFS.forEach(def => {
+    for (const syn of def.syns) {
+      const match = headers.find(h => norm(h) === syn && !used.has(h));
+      if (match) { mapping[def.key] = match; used.add(match); break; }
+    }
+  });
+  return mapping;
+}
+
+function buildMappingUI() {
+  const autoMap = autoDetect(APP.rawHeaders);
+  document.getElementById('mapping-info').textContent =
+    `Columnas detectadas: ${APP.rawHeaders.length} · Filas: ${APP.rawRows.length.toLocaleString('es-MX')}`;
+
+  const reqEl = document.getElementById('mapping-required');
+  const optEl = document.getElementById('mapping-optional');
+  reqEl.innerHTML = ''; optEl.innerHTML = '';
+
+  FIELD_DEFS.forEach(def => {
+    const selOpts = ['<option value="">(No mapear)</option>',
+      ...APP.rawHeaders.map(h => `<option value="${h}" ${autoMap[def.key]===h?'selected':''}>${h}</option>`)
+    ].join('');
+
+    const preview = autoMap[def.key]
+      ? APP.rawRows.slice(0,2).map(r => r[autoMap[def.key]]).filter(Boolean).join(', ')
+      : '';
+
+    const row = document.createElement('div');
+    row.className = 'mapping-row';
+    row.innerHTML = `
+      <div class="mapping-label">
+        ${def.label}
+        <span class="${def.required ? 'mapping-req' : 'mapping-opt'}">${def.required ? '* requerida' : 'opcional'}</span>
+      </div>
+      <select id="map-${def.key}" onchange="updatePreview('${def.key}')">${selOpts}</select>
+      <div class="mapping-preview" id="prev-${def.key}">${preview}</div>
+    `;
+    (def.required ? reqEl : optEl).appendChild(row);
+  });
+}
+
+function updatePreview(key) {
+  const sel = document.getElementById(`map-${key}`).value;
+  const prev = document.getElementById(`prev-${key}`);
+  prev.textContent = sel
+    ? APP.rawRows.slice(0,2).map(r => r[sel]).filter(Boolean).join(', ')
+    : '';
+}
+
+function processMapping() {
+  const mapping = {};
+  FIELD_DEFS.forEach(def => {
+    const val = document.getElementById(`map-${def.key}`).value;
+    if (val) mapping[def.key] = val;
+  });
+  const missing = FIELD_DEFS.filter(d => d.required && !mapping[d.key]).map(d => d.label);
+  if (missing.length) {
+    showError('mapping-error', `Faltan columnas requeridas: ${missing.join(', ')}`);
+    return;
+  }
+  document.getElementById('mapping-error').style.display = 'none';
+  APP.mapping = mapping;
+  runValidation();
+  showScreen('validation');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// VALIDATION — semáforo
+// ════════════════════════════════════════════════════════════════════
+function runValidation() {
+  const m = APP.mapping;
+  const rows = APP.rawRows;
+  const errors = [], warns = [], oks = [];
+
+  // Build per-SKU groups
+  const groups = {};
+  rows.forEach(r => {
+    const sku = r[m.sku];
+    const p = parseFloat(String(r[m.precio]).replace(/[$,]/g,''));
+    const q = parseFloat(String(r[m.unidades]).replace(/,/g,''));
+    if (!sku) return;
+    if (!groups[sku]) groups[sku] = { prices: [], qtys: [], rows: 0 };
+    groups[sku].rows++;
+    if (!isNaN(p) && p > 0) groups[sku].prices.push(p);
+    if (!isNaN(q)) groups[sku].qtys.push(q);
+  });
+
+  const skuList = Object.keys(groups);
+  const totalRows = rows.length;
+  const nullSkus = rows.filter(r => !r[m.sku] || String(r[m.sku]).trim() === '').length;
+  const negPrices = rows.filter(r => { const p = parseFloat(String(r[m.precio]).replace(/[$,]/g,'')); return p <= 0 || isNaN(p); }).length;
+  const fewObs = skuList.filter(k => groups[k].prices.length < 5).length;
+  const noVar = skuList.filter(k => { const ps = groups[k].prices; return ps.length >= 5 && new Set(ps).size < 2; }).length;
+  const noCosto = !m.costo;
+
+  // Errors (rojo)
+  if (nullSkus > totalRows * 0.1) errors.push(`${nullSkus} filas sin SKU (>${((nullSkus/totalRows)*100).toFixed(0)}% del total)`);
+  if (negPrices > totalRows * 0.05) errors.push(`${negPrices} filas con precio inválido (cero, negativo o no numérico)`);
+  if (skuList.length < 2) errors.push('Se detectó menos de 2 SKUs distintos — verifica la columna SKU');
+
+  // Warnings (amarillo)
+  if (fewObs > 0) warns.push(`${fewObs} SKU(s) con menos de 5 observaciones de precio — la elasticidad no podrá estimarse`);
+  if (noVar > 0) warns.push(`${noVar} SKU(s) sin variación de precio — β no identificable para esos SKUs`);
+  if (noCosto) warns.push('Columna de costo no mapeada — los márgenes no estarán disponibles');
+  if (nullSkus > 0 && nullSkus <= totalRows * 0.1) warns.push(`${nullSkus} filas sin SKU serán ignoradas`);
+
+  // OKs (verde)
+  oks.push(`${skuList.length} SKUs únicos detectados`);
+  oks.push(`${totalRows.toLocaleString('es-MX')} filas totales`);
+  oks.push(`${skuList.filter(k => groups[k].prices.length >= 5).length} SKUs con suficientes observaciones para OLS`);
+  if (m.costo) oks.push('Columna de costo mapeada — márgenes disponibles');
+
+  // Render
+  const el = document.getElementById('validation-result');
+  el.innerHTML = '';
+  const render = (cls, dot, title, items) => {
+    if (!items.length) return;
+    el.innerHTML += `
+      <div class="semaforo semaforo-${cls}">
+        <div class="semaforo-dot dot-${cls}"></div>
+        <div>
+          <div class="semaforo-title">${title}</div>
+          <ul>${items.map(i=>`<li>${i}</li>`).join('')}</ul>
+        </div>
+      </div>`;
+  };
+  if (errors.length) render('rojo','','Error crítico — revisa los datos antes de continuar', errors);
+  if (warns.length)  render('amarillo','','Advertencias', warns);
+  render('verde','','Todo en orden', oks);
+
+  document.getElementById('btn-go-dashboard').disabled = errors.length > 0;
+  document.getElementById('btn-go-dashboard').style.opacity = errors.length > 0 ? '0.4' : '1';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PROCESAMIENTO — raw rows → SKUS array
+// ════════════════════════════════════════════════════════════════════
+function buildSkusFromRaw() {
+  const m = APP.mapping;
+  const rows = APP.rawRows;
+  const clean = v => parseFloat(String(v).replace(/[$,\s]/g,''));
+
+  // Group rows by SKU
+  const groups = {};
+  rows.forEach(r => {
+    const sku = String(r[m.sku] || '').trim();
+    if (!sku) return;
+    if (!groups[sku]) groups[sku] = { rows: [] };
+    groups[sku].rows.push(r);
+  });
+
+  return Object.entries(groups).map(([sku, g]) => {
+    const rs = g.rows;
+    // Aggregate per (fecha, precio) if fecha available, else per precio
+    const aggKey = r => m.fecha ? `${r[m.fecha]}__${clean(r[m.precio])}` : `${clean(r[m.precio])}`;
+    const aggMap = {};
+    rs.forEach(r => {
+      const k = aggKey(r);
+      const p = clean(r[m.precio]);
+      const q = clean(r[m.unidades]);
+      if (isNaN(p) || p <= 0 || isNaN(q)) return;
+      if (!aggMap[k]) aggMap[k] = { precio: p, unidades: 0, n: 0 };
+      aggMap[k].unidades += q;
+      aggMap[k].n++;
+    });
+    const obs = Object.values(aggMap);
+    const prices = obs.map(o => o.precio);
+    const qtys   = obs.map(o => o.unidades);
+    const ols = olsLogLog(prices, qtys);
+
+    // Aggregate SKU-level metadata from first valid row
+    const firstRow = rs[0];
+    const nombre       = m.nombre       ? String(firstRow[m.nombre] || sku)       : sku;
+    const clase        = m.clase        ? String(firstRow[m.clase] || 'Sin clase') : 'Sin clase';
+    const departamento = m.departamento ? String(firstRow[m.departamento] || 'Otros') : (DEPT_MAP[clase] || 'Otros');
+    const marca        = m.marca        ? String(firstRow[m.marca] || '')         : '';
+    const costoVals    = m.costo ? rs.map(r => clean(r[m.costo])).filter(v => !isNaN(v) && v > 0) : [];
+    const costo        = costoVals.length ? costoVals.reduce((a,b)=>a+b)/costoVals.length : null;
+
+    const precio_actual    = prices.length ? prices[prices.length - 1] : (prices[0] || 0);
+    const unidades_hist    = qtys.reduce((a,b)=>a+b, 0);
+    const precio_min_hist  = prices.length ? Math.min(...prices) : precio_actual;
+    const precio_max_hist  = prices.length ? Math.max(...prices) : precio_actual;
+    const n_trans          = rs.length;
+
+    const clasificacion = classifyElasticity(ols.beta, ols.pValue);
+    const skuObj = { sku, nombre, clase, departamento, marca, costo, beta: ols.beta, p_value: ols.pValue, r2: ols.r2,
+                     clasificacion, precio_actual, precio_min_hist, precio_max_hist, unidades_hist, n_trans,
+                     precio_recomendado: precio_actual, accion: 'MANTENER' };
+    // Compute action and recommended price
+    skuObj.accion = computeAccion(skuObj);
+    skuObj.precio_recomendado = findOptimalPrice(skuObj);
+    return skuObj;
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// DECISION RULES — slide 09
+// ════════════════════════════════════════════════════════════════════
+function computeAccion(s) {
+  if (!s.beta || s.n_trans < 10) return 'NO_RECOMENDAR';
+  if (s.beta >= 0)               return 'NO_RECOMENDAR';
+  if (s.costo !== null && s.costo > s.precio_actual) return 'EXPLORATORIO';
+  const s0  = simulateRaw(s, 0);
+  const sm5 = simulateRaw(s, -5);
+  const sp5 = simulateRaw(s, 5);
+  if (s.beta < -1) return sm5.ingreso > s0.ingreso ? 'BAJAR' : 'MANTENER';
+  const betterMargen  = s.costo !== null && sp5.margen !== null && sp5.margen > s0.margen;
+  const betterIngreso = sp5.ingreso > s0.ingreso;
+  return (betterMargen || betterIngreso) ? 'SUBIR' : 'MANTENER';
+}
+
+function findOptimalPrice(s) {
+  if (!s.beta || ['NO_RECOMENDAR','EXPLORATORIO','MANTENER'].includes(s.accion)) return s.precio_actual;
+  let bestScore = -Infinity, bestDelta = 0;
+  for (let d = -60; d <= 60; d += 0.5) {
+    const sim = simulateRaw(s, d);
+    if (sim.score > bestScore) { bestScore = sim.score; bestDelta = d; }
+  }
+  return +(s.precio_actual * (1 + bestDelta / 100)).toFixed(2);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// DEMO MODE
+// ════════════════════════════════════════════════════════════════════
+function loadDemo() {
+  APP.mode = 'demo';
+  APP.SKUS = [...new Map(
+    SKUS_DATA.map(s => [s.sku, { ...s, r2: s.r2 ?? null, departamento: DEPT_MAP[s.clase] || 'Otros' }])
+  ).values()];
+  buildAndShowDashboard();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PLANTILLA CSV
+// ════════════════════════════════════════════════════════════════════
+function downloadTemplate() {
+  const cols = 'sku,precio,unidades,fecha,nombre,clase,departamento,costo,marca';
+  const ex1  = '1001,49.90,120,2025-01,FOLDER MANILA 25PK,FOLDERS MANILA,Carpetas y Folders,28.50,OFFICEMAX';
+  const ex2  = '1001,44.90,155,2025-02,FOLDER MANILA 25PK,FOLDERS MANILA,Carpetas y Folders,28.50,OFFICEMAX';
+  const ex3  = '1002,29.90,80,2025-01,ETIQUETA BLANCA,ETIQUETAS ADHESIVAS,Etiquetas,14.50,JANEL';
+  const csv  = [cols, ex1, ex2, ex3].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'plantilla_input.csv';
+  a.click();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SIMULACIÓN
+// ════════════════════════════════════════════════════════════════════
+function simulateRaw(sku, deltaPct, promoFactor) {
+  const beta   = getBeta(sku);
+  const factor = promoFactor !== undefined ? promoFactor : 1;
+  const p_new  = sku.precio_actual * (1 + deltaPct / 100) * factor;
+  const q_raw  = (beta !== null)
     ? sku.unidades_hist * Math.pow(p_new / sku.precio_actual, beta)
     : sku.unidades_hist;
   const q        = Math.max(q_raw, 0);
   const ingreso  = p_new * q;
   const hasCosto = sku.costo !== null && sku.costo !== undefined;
   const margen   = hasCosto ? (p_new - sku.costo) * q : null;
-
   const ingreso_act = sku.precio_actual * sku.unidades_hist;
   const margen_act  = hasCosto ? (sku.precio_actual - sku.costo) * sku.unidades_hist : null;
-
-  const d_ing = ((ingreso / ingreso_act) - 1) * 100;
-  const d_mar = (margen !== null && margen_act !== null && margen_act !== 0)
-    ? ((margen / margen_act) - 1) * 100 : null;
-
+  const d_ing = ingreso_act > 0 ? ((ingreso / ingreso_act) - 1) * 100 : 0;
+  const d_mar = (margen !== null && margen_act !== null && margen_act !== 0) ? ((margen / margen_act) - 1) * 100 : null;
   const score = (d_mar !== null) ? d_ing * 0.5 + d_mar * 0.5 : d_ing;
-
-  return {
-    precio_nuevo: p_new, unidades: q, ingreso, margen,
-    delta_ingreso_pct: d_ing, delta_margen_pct: d_mar,
-    delta_unidades_pct: ((q / sku.unidades_hist) - 1) * 100,
-    ingreso_act, margen_act, beta_usado: beta, score
-  };
+  return { precio_nuevo: p_new, unidades: q, ingreso, margen, delta_ingreso_pct: d_ing, delta_margen_pct: d_mar,
+           delta_unidades_pct: ((q / (sku.unidades_hist||1)) - 1) * 100, ingreso_act, margen_act, beta_usado: beta, score };
 }
 
-function pickBest(sku) {
-  let best = null, bestScore = -Infinity;
-  ESCENARIOS.forEach(ch => {
-    const sim = simulate(sku, ch);
-    if (sim.score > bestScore) { bestScore = sim.score; best = { ch, sim, score: sim.score }; }
-  });
-  return best;
+function getBeta(sku) {
+  if (APP.currentMes && BETAS_MENSUAL.length > 0) {
+    const m = BETAS_MENSUAL.find(b => b.sku === sku.sku && b.mes === APP.currentMes);
+    if (m) return m.beta;
+  }
+  return sku.beta;
 }
 
-// ─── Badge helpers ─────────────────────────────────────────────────────────
-const CLASS_LABEL = { ELASTICO: 'Elástico ★', Elastico_NS: 'Elástico n.s.', Inelastico: 'Inelástico', Sin_reaccion: 'Sin reacción', 'Sin datos': 'Sin datos' };
-const CLASS_BADGE = { ELASTICO: 'badge-elastico', Elastico_NS: 'badge-elastico-ns', Inelastico: 'badge-inelastico', Sin_reaccion: 'badge-sin-reaccion', 'Sin datos': 'badge-sin-datos' };
-const ACTION_LABEL = { BAJAR: 'BAJAR precio', SUBIR: 'SUBIR precio', SUBIR_DIRECCIONAL: 'SUBIR (direccional)', MANTENER: 'MANTENER', INVESTIGAR: 'INVESTIGAR' };
-const ACTION_BADGE = { BAJAR: 'action-bajar', SUBIR: 'action-subir', SUBIR_DIRECCIONAL: 'action-subir-direc', MANTENER: 'action-mantener', INVESTIGAR: 'action-investigar' };
+// ════════════════════════════════════════════════════════════════════
+// DASHBOARD — inicialización
+// ════════════════════════════════════════════════════════════════════
+const fmt$    = n => '$' + Math.round(n).toLocaleString('es-MX');
+const fmt$dec = n => '$' + (+n).toFixed(2);
+const fmtPct  = n => (n >= 0 ? '+' : '') + (+n).toFixed(1) + '%';
+const fmtNum  = n => Math.round(n).toLocaleString('es-MX');
+
+const CLASS_LABEL = { ELASTICO:'Elástico ★', Elastico_NS:'Elástico n.s.', Inelastico:'Inelástico', Sin_reaccion:'Sin reacción', 'Sin datos':'Sin datos' };
+const CLASS_BADGE = { ELASTICO:'badge-elastico', Elastico_NS:'badge-elastico-ns', Inelastico:'badge-inelastico', Sin_reaccion:'badge-sin-reaccion', 'Sin datos':'badge-sin-datos' };
+const ACTION_LABEL = { BAJAR:'Bajar precio / promover', SUBIR:'Subir precio', SUBIR_DIRECCIONAL:'Subir precio (dir.)', MANTENER:'Mantener precio', INVESTIGAR:'Sin recomendación', NO_RECOMENDAR:'Sin recomendación', EXPLORATORIO:'Rec. exploratoria' };
+const ACTION_BADGE = { BAJAR:'action-bajar', SUBIR:'action-subir', SUBIR_DIRECCIONAL:'action-subir-direc', MANTENER:'action-mantener', INVESTIGAR:'action-investigar', NO_RECOMENDAR:'action-investigar', EXPLORATORIO:'action-explorar' };
 const getClassLabel = c => CLASS_LABEL[c] || c;
 const getClassBadge = c => CLASS_BADGE[c] || 'badge-sin-datos';
-const getActionLabel = a => ACTION_LABEL[a] || a;
-const getActionBadge = a => ACTION_BADGE[a] || 'action-mantener';
+const getActLabel   = a => ACTION_LABEL[a] || a;
+const getActBadge   = a => ACTION_BADGE[a] || 'action-mantener';
 
-// ─── Cascading filters ─────────────────────────────────────────────────────
-function initFilters() {
-  // Months
+function buildAndShowDashboard() {
+  if (APP.mode === 'upload') APP.SKUS = buildSkusFromRaw();
+  APP.currentMes = '';
+  APP.planFilter = null;
+
+  // Título / subtítulo
+  const n = APP.SKUS.length;
+  const totalUnits = APP.SKUS.reduce((a,s) => a + (s.unidades_hist||0), 0);
+  if (APP.mode === 'demo') {
+    document.getElementById('dash-title').textContent = 'Dynamic Pricing Analyzer — Demo OfficeMax';
+    document.getElementById('dash-subtitle').textContent = `${n} SKUs · Archivo y Accesorios · 28 meses de historial`;
+    document.getElementById('dash-footer').textContent = `Datos demo: ${n} SKUs · ${totalUnits.toLocaleString('es-MX')} unidades históricas`;
+  } else {
+    document.getElementById('dash-title').textContent = 'Dynamic Pricing Analyzer';
+    document.getElementById('dash-subtitle').textContent = `${n} SKUs analizados · ${totalUnits.toLocaleString('es-MX')} unidades históricas`;
+    document.getElementById('dash-footer').textContent = `Análisis generado a partir de ${APP.rawRows.length.toLocaleString('es-MX')} filas cargadas`;
+  }
+
+  initDashboardFilters();
+  renderSummaryStats();
+  renderTabla();
+  renderPlan();
+  activateTab('simulador');
+  showScreen('dashboard');
+
+  // Select first SKU
+  const firstSku = APP.SKUS[0];
+  if (firstSku) selectSku(firstSku.sku);
+}
+
+function initDashboardFilters() {
+  const SKUS = APP.SKUS;
+  const depts = [...new Set(SKUS.map(s => s.departamento))].sort();
+  const meses = [...new Set(BETAS_MENSUAL.map(b => b.mes))].sort();
+
+  // Sim tab
+  const deptEl = document.getElementById('fil-dept');
+  deptEl.innerHTML = '<option value="">Todos</option>';
+  depts.forEach(d => { const o = document.createElement('option'); o.value=d; o.textContent=d; deptEl.appendChild(o); });
+
   const mesEl = document.getElementById('fil-mes');
-  MESES_DISPONIBLES.forEach(m => {
-    const [y, mo] = m.split('-');
-    const lbl = new Date(+y, +mo - 1, 1).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
-    const o = document.createElement('option');
-    o.value = m;
-    o.textContent = lbl.charAt(0).toUpperCase() + lbl.slice(1);
+  mesEl.innerHTML = '<option value="">Global</option>';
+  meses.forEach(m => {
+    const [y,mo] = m.split('-');
+    const lbl = new Date(+y, +mo-1, 1).toLocaleDateString('es-MX', {month:'long',year:'numeric'});
+    const o = document.createElement('option'); o.value=m; o.textContent=lbl.charAt(0).toUpperCase()+lbl.slice(1);
     mesEl.appendChild(o);
   });
+  document.getElementById('card-beta-temporal').style.display = meses.length ? '' : 'none';
 
-  // Departments
-  const depts = [...new Set(SKUS.map(s => s.departamento))].sort();
-  ['fil-dept', 'filtro-dept-tabla'].forEach(id => {
-    const el = document.getElementById(id);
-    depts.forEach(d => {
-      const o = document.createElement('option');
-      o.value = d; o.textContent = d;
-      el.appendChild(o);
-    });
+  // Tabla tab
+  const dtEl = document.getElementById('filtro-dept-tabla');
+  dtEl.innerHTML = '<option value="">Todos</option>';
+  depts.forEach(d => { const o = document.createElement('option'); o.value=d; o.textContent=d; dtEl.appendChild(o); });
+
+  // Plan tab
+  const pdEl = document.getElementById('plan-dept');
+  pdEl.innerHTML = '<option value="">Todos</option>';
+  depts.forEach(d => { const o = document.createElement('option'); o.value=d; o.textContent=d; pdEl.appendChild(o); });
+
+  const pmEl = document.getElementById('plan-mes');
+  pmEl.innerHTML = '<option value="">Global</option>';
+  meses.forEach(m => {
+    const [y,mo] = m.split('-');
+    const lbl = new Date(+y,+mo-1,1).toLocaleDateString('es-MX',{month:'long',year:'numeric'});
+    const o = document.createElement('option'); o.value=m; o.textContent=lbl.charAt(0).toUpperCase()+lbl.slice(1);
+    pmEl.appendChild(o);
   });
 
   rebuildClases();
 }
 
+// ════════════════════════════════════════════════════════════════════
+// SIMULADOR — cascading filters + SKU card + charts + scenarios
+// ════════════════════════════════════════════════════════════════════
 function rebuildClases() {
   const dept = document.getElementById('fil-dept').value;
-  const base = dept ? SKUS.filter(s => s.departamento === dept) : SKUS;
+  const base = dept ? APP.SKUS.filter(s => s.departamento === dept) : APP.SKUS;
   const clases = [...new Set(base.map(s => s.clase))].sort();
   const el = document.getElementById('fil-clase');
   el.innerHTML = '<option value="">Todas</option>';
-  clases.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; el.appendChild(o); });
+  clases.forEach(c => { const o = document.createElement('option'); o.value=c; o.textContent=c; el.appendChild(o); });
   rebuildSkus();
 }
 
 function rebuildSkus() {
   const dept  = document.getElementById('fil-dept').value;
   const clase = document.getElementById('fil-clase').value;
-  let list = SKUS;
+  let list = APP.SKUS;
   if (dept)  list = list.filter(s => s.departamento === dept);
   if (clase) list = list.filter(s => s.clase === clase);
 
-  const sorted = [...list].sort((a, b) => {
+  list = [...list].sort((a,b) => {
     const pa = a.clasificacion === 'ELASTICO' ? 0 : 1;
     const pb = b.clasificacion === 'ELASTICO' ? 0 : 1;
     if (pa !== pb) return pa - pb;
     return (a.beta ?? 999) - (b.beta ?? 999);
   });
 
-  const prevSku = currentSku ? currentSku.sku : null;
   const sel = document.getElementById('sku-select');
+  const prev = APP.currentSku ? APP.currentSku.sku : null;
   sel.innerHTML = '';
-  sorted.forEach(s => {
+  list.forEach(s => {
     const o = document.createElement('option');
     o.value = s.sku;
     o.textContent = `${s.sku} — ${s.nombre} (β=${s.beta !== null ? s.beta.toFixed(2) : 'NA'})`;
+    if (s.sku == prev) o.selected = true;
     sel.appendChild(o);
   });
-
-  const keep = prevSku && sorted.find(s => s.sku === prevSku);
-  if (keep) { sel.value = prevSku; currentSku = keep; }
-  else if (sorted.length) { currentSku = sorted[0]; sel.value = currentSku.sku; }
-  else currentSku = null;
-
-  renderAll();
+  const found = list.find(s => s.sku == prev);
+  selectSku(found ? found.sku : (list[0] ? list[0].sku : null));
 }
 
-// ─── Render SKU info ───────────────────────────────────────────────────────
-function renderSkuInfo() {
-  const el = document.getElementById('sku-info');
-  if (!currentSku) { el.innerHTML = '<p style="color:var(--text-tertiary);font-size:13px;">Sin SKU seleccionado.</p>'; return; }
-  const s = currentSku;
-  const betaUsado = getBeta(s, currentMes);
-  const betaStr = betaUsado !== null ? betaUsado.toFixed(3) : 'NA';
-  const betaSrc = currentMes && BETAS_MENSUAL.length && betaUsado !== s.beta ? `mes ${currentMes}` : 'global 28 meses';
-  const pStr = s.p_value !== null ? `p=${s.p_value.toFixed(4)}` : '';
+function onSkuChange() { selectSku(document.getElementById('sku-select').value); }
+function onMesChange() { APP.currentMes = document.getElementById('fil-mes').value; renderSkuCard(); renderScenarios(); }
 
-  el.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px;">
-      <div>
-        <div style="font-size:12px;color:var(--text-secondary);">SKU ${s.sku} · ${s.departamento} › ${s.clase} · ${s.tipo_marca}</div>
-        <div style="font-size:18px;font-weight:500;margin-top:4px;">${s.nombre}</div>
+function selectSku(skuKey) {
+  if (!skuKey) return;
+  const sku = APP.SKUS.find(s => String(s.sku) === String(skuKey));
+  if (!sku) return;
+  APP.currentSku = sku;
+  document.getElementById('sku-select').value = skuKey;
+  setSlider(0, false);
+  renderSkuCard();
+  renderSimChart();
+  renderBetaChart();
+  renderScenarios();
+}
+
+function renderSkuCard() {
+  const s = APP.currentSku;
+  if (!s) return;
+  const beta  = s.beta !== null ? s.beta.toFixed(3) : 'N/A';
+  const pval  = s.p_value !== null ? s.p_value.toFixed(4) : 'N/A';
+  const r2    = s.r2 !== null && s.r2 !== undefined ? s.r2.toFixed(3) : 'N/A';
+  document.getElementById('sku-info').innerHTML = `
+    <div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:200px;">
+        <h3>${s.nombre}</h3>
+        <p style="margin:2px 0; font-size:13px; color:var(--text-secondary);">SKU ${s.sku}${s.clase ? ' · ' + s.clase : ''}${s.marca ? ' · ' + s.marca : ''}</p>
+        <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+          <span class="badge ${getClassBadge(s.clasificacion)}">${getClassLabel(s.clasificacion)}</span>
+          <span class="badge ${getActBadge(s.accion)}">${getActLabel(s.accion)}</span>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <span class="badge ${getClassBadge(s.clasificacion)}">${getClassLabel(s.clasificacion)}</span>
-        <span class="badge ${getActionBadge(s.accion)}">${getActionLabel(s.accion)}</span>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; flex:2; min-width:300px;">
+        <div class="metric"><div class="metric-label">β (elasticidad)</div><div class="metric-value" style="font-size:20px;">${beta}</div></div>
+        <div class="metric"><div class="metric-label">p-valor</div><div class="metric-value" style="font-size:20px;">${pval}</div><div class="metric-sub">${s.p_value !== null && s.p_value < 0.10 ? '✓ sig. (α=10%)' : s.p_value !== null ? '✗ no significativo' : ''}</div></div>
+        <div class="metric"><div class="metric-label">R²</div><div class="metric-value" style="font-size:20px;">${r2}</div></div>
+        <div class="metric"><div class="metric-label">n transacciones</div><div class="metric-value" style="font-size:20px;">${s.n_trans || '—'}</div></div>
+        <div class="metric"><div class="metric-label">Precio actual</div><div class="metric-value" style="font-size:20px;">${fmt$dec(s.precio_actual)}</div></div>
+        <div class="metric"><div class="metric-label">Precio recomendado</div><div class="metric-value" style="font-size:20px; color:var(--c-teal-800);">${fmt$dec(s.precio_recomendado)}</div></div>
       </div>
-    </div>
-    <div class="metric-grid" style="margin-top:16px;">
-      <div class="metric">
-        <div class="metric-label">β utilizada</div>
-        <div class="metric-value">${betaStr}</div>
-        <div class="metric-sub">${betaSrc} · ${pStr}</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Precio actual</div>
-        <div class="metric-value">${fmt$dec(s.precio_actual)}</div>
-        <div class="metric-sub">rango ${fmt$dec(s.precio_min_hist)} – ${fmt$dec(s.precio_max_hist)}</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Costo unitario</div>
-        <div class="metric-value">${s.costo !== null ? fmt$dec(s.costo) : 'N/D'}</div>
-        <div class="metric-sub">margen bruto ${s.costo ? Math.round((s.precio_actual - s.costo) / s.precio_actual * 100) : 0}%</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">Precio recomendado</div>
-        <div class="metric-value">${fmt$dec(s.precio_recomendado)}</div>
-        <div class="metric-sub">${s.precio_recomendado === s.precio_actual ? 'mantener' : fmtPct(((s.precio_recomendado / s.precio_actual) - 1) * 100)}</div>
-      </div>
-    </div>
-    <div style="font-size:12px;color:var(--text-tertiary);margin-top:8px;">
-      ${s.unidades_hist.toLocaleString('es-MX')} unidades históricas · ${s.n_trans} transacciones
     </div>`;
 }
 
-// ─── Render simulación (métricas live) ────────────────────────────────────
-function renderSimulation() {
-  if (!currentSku) return;
-  const delta = parseFloat(document.getElementById('price-slider').value);
-  document.getElementById('price-delta').textContent = (delta >= 0 ? '+' : '') + delta + '%';
-  const sim = simulate(currentSku, delta);
+function setSlider(v, render=true) {
+  document.getElementById('price-slider').value = v;
+  document.getElementById('price-delta').textContent = (v >= 0 ? '+' : '') + v + '%';
+  if (render) onSlider();
+}
 
+function onSlider() {
+  const v = +document.getElementById('price-slider').value;
+  document.getElementById('price-delta').textContent = (v >= 0 ? '+' : '') + v + '%';
+  if (!APP.currentSku) return;
+  const sim = simulateRaw(APP.currentSku, v);
+  const hasCosto = APP.currentSku.costo !== null && APP.currentSku.costo !== undefined;
   document.getElementById('m-precio').textContent = fmt$dec(sim.precio_nuevo);
-  document.getElementById('m-precio-sub').textContent = `precio actual ${fmt$dec(currentSku.precio_actual)}`;
-
+  document.getElementById('m-precio-sub').textContent = `precio actual ${fmt$dec(APP.currentSku.precio_actual)}`;
   document.getElementById('m-unidades').textContent = fmtNum(sim.unidades);
-  const uSub = document.getElementById('m-unidades-sub');
-  uSub.textContent = fmtPct(sim.delta_unidades_pct) + ' vs histórico';
-  uSub.className = 'metric-sub ' + (sim.delta_unidades_pct >= 0 ? 'metric-positive' : 'metric-negative');
-
+  document.getElementById('m-unidades-sub').textContent = `vs histórico ${fmtNum(APP.currentSku.unidades_hist)}`;
   document.getElementById('m-ingreso').textContent = fmt$(sim.ingreso);
-  const iSub = document.getElementById('m-ingreso-sub');
-  iSub.textContent = fmtPct(sim.delta_ingreso_pct) + ' vs ' + fmt$(sim.ingreso_act);
-  iSub.className = 'metric-sub ' + (sim.delta_ingreso_pct >= 0 ? 'metric-positive' : 'metric-negative');
-
-  if (sim.margen !== null) {
-    document.getElementById('m-margen').textContent = fmt$(sim.margen);
-    const mSub = document.getElementById('m-margen-sub');
-    const dm = sim.delta_margen_pct;
-    mSub.textContent = (dm !== null ? fmtPct(dm) : '—') + ' vs ' + fmt$(sim.margen_act);
-    mSub.className = 'metric-sub ' + ((dm ?? 0) >= 0 ? 'metric-positive' : 'metric-negative');
-  } else {
-    document.getElementById('m-margen').textContent = 'N/D';
-    document.getElementById('m-margen-sub').textContent = 'sin costo disponible';
-    document.getElementById('m-margen-sub').className = 'metric-sub';
-  }
-
-  updateChartSim(delta);
+  document.getElementById('m-ingreso-sub').innerHTML = `vs histórico ${fmt$(sim.ingreso_act)} <span class="${sim.delta_ingreso_pct>=0?'metric-positive':'metric-negative'}">${fmtPct(sim.delta_ingreso_pct)}</span>`;
+  document.getElementById('m-margen').textContent = sim.margen !== null ? fmt$(sim.margen) : 'N/D';
+  document.getElementById('m-margen-sub').innerHTML = hasCosto && sim.margen_act !== null
+    ? `vs histórico ${fmt$(sim.margen_act)} <span class="${sim.delta_margen_pct>=0?'metric-positive':'metric-negative'}">${sim.delta_margen_pct!==null?fmtPct(sim.delta_margen_pct):'N/D'}</span>`
+    : 'Costo no disponible';
+  updateSimChart(v);
 }
 
-// ─── Render escenarios + decisión automática ──────────────────────────────
-function renderEscenarios() {
-  if (!currentSku) return;
-  const sliderVal = parseInt(document.getElementById('price-slider').value);
-  const best = pickBest(currentSku);
-
-  // Decision banner
-  const banner = document.getElementById('decision-banner');
-  if (best) {
-    banner.style.display = 'flex';
-    const chStr = (best.ch >= 0 ? '+' : '') + best.ch + '%';
-    const precioFinal = fmt$dec(currentSku.precio_actual * (1 + best.ch / 100));
-    document.getElementById('decision-label').textContent =
-      `Decisión automática: precio ${chStr} → ${precioFinal}`;
-    const dmStr = best.sim.delta_margen_pct !== null ? fmtPct(best.sim.delta_margen_pct) : 'N/D';
-    document.getElementById('decision-detail').textContent =
-      `Score: ${best.score.toFixed(1)} · Δ Ingreso ${fmtPct(best.sim.delta_ingreso_pct)} · Δ Margen ${dmStr} · Ingreso final: ${fmt$(best.sim.ingreso)}`;
-  } else {
-    banner.style.display = 'none';
-  }
-
-  const tbody = document.getElementById('escenarios-body');
-  tbody.innerHTML = '';
-  ESCENARIOS.forEach(ch => {
-    const sim    = simulate(currentSku, ch);
-    const isBest = best && ch === best.ch;
-    const isCur  = ch === sliderVal;
-    const tr = document.createElement('tr');
-    let cls = '';
-    if (isBest) cls += ' best-scenario';
-    if (isCur)  cls += ' current';
-    tr.className = cls.trim();
-
-    const dmStr  = sim.delta_margen_pct !== null ? fmtPct(sim.delta_margen_pct) : '—';
-    const dmCls  = sim.delta_margen_pct !== null ? (sim.delta_margen_pct >= 0 ? 'metric-positive' : 'metric-negative') : '';
-    const marAbs = sim.margen !== null ? fmt$(sim.margen) : '—';
-
-    tr.innerHTML = `
-      <td>${(ch >= 0 ? '+' : '') + ch}%${isBest ? ' ★' : ''}</td>
-      <td class="numeric">${fmt$dec(sim.precio_nuevo)}</td>
-      <td class="numeric">${fmtNum(sim.unidades)}</td>
-      <td class="numeric">${fmt$(sim.ingreso)}</td>
-      <td class="numeric">${marAbs}</td>
-      <td class="numeric ${sim.delta_ingreso_pct >= 0 ? 'metric-positive' : 'metric-negative'}">${fmtPct(sim.delta_ingreso_pct)}</td>
-      <td class="numeric ${dmCls}">${dmStr}</td>
-      <td class="numeric">${sim.score.toFixed(1)}</td>`;
-    tbody.appendChild(tr);
-  });
+function setSliderToOptimal() {
+  if (!APP.currentSku) return;
+  const rec = APP.currentSku.precio_recomendado;
+  const delta = Math.round((rec / APP.currentSku.precio_actual - 1) * 100);
+  setSlider(Math.max(-60, Math.min(60, delta)));
 }
 
-// ─── Chart: curvas de simulación ──────────────────────────────────────────
-function updateChartSim(currentDelta) {
-  if (!currentSku) return;
-  const pts = [];
-  for (let ch = -60; ch <= 60; ch++) {
-    const s = simulate(currentSku, ch);
-    pts.push({ ch, di: s.delta_ingreso_pct, dm: s.delta_margen_pct ?? 0 });
-  }
-  if (chartSim) chartSim.destroy();
-  chartSim = new Chart(document.getElementById('chart-sim').getContext('2d'), {
+// ─── Simulation chart ───────────────────────────────────────────────
+function renderSimChart() {
+  const s = APP.currentSku;
+  if (!s) return;
+  const deltas = Array.from({length:121}, (_,i) => -60 + i);
+  const ings = deltas.map(d => simulateRaw(s,d).ingreso);
+  const mars = deltas.map(d => { const sim=simulateRaw(s,d); return sim.margen; });
+  const labels = deltas.map(d => (d>=0?'+':'')+d+'%');
+
+  if (APP.chartSim) APP.chartSim.destroy();
+  const ctx = document.getElementById('chart-sim').getContext('2d');
+  APP.chartSim = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: pts.map(p => p.ch + '%'),
+      labels,
       datasets: [
-        { label: 'Δ Ingreso %', data: pts.map(p => p.di), borderColor: '#0F6E56', backgroundColor: 'rgba(15,110,86,0.08)', borderWidth: 2, tension: 0.2, pointRadius: 0, pointHoverRadius: 5 },
-        { label: 'Δ Margen %',  data: currentSku.costo ? pts.map(p => p.dm) : [], borderColor: '#A32D2D', backgroundColor: 'rgba(163,45,45,0.08)', borderWidth: 2, tension: 0.2, pointRadius: 0, pointHoverRadius: 5 }
+        { label:'Ingreso ($)', data:ings, borderColor:'#0F6E56', backgroundColor:'transparent', borderWidth:2, pointRadius:0, tension:0.3 },
+        { label:'Margen ($)', data:mars, borderColor:'#A32D2D', backgroundColor:'transparent', borderWidth:2, pointRadius:0, tension:0.3 }
       ]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { intersect: false, mode: 'index' },
-      plugins: {
-        legend: { position: 'top', align: 'end', labels: { font: { size: 12 }, boxWidth: 14 } },
-        tooltip: { callbacks: { label: c => c.dataset.label + ': ' + (c.parsed.y >= 0 ? '+' : '') + c.parsed.y.toFixed(1) + '%' } }
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top'}, tooltip:{mode:'index',intersect:false} },
+      scales:{
+        x:{ ticks:{maxTicksLimit:13, font:{size:11}}, grid:{display:false} },
+        y:{ ticks:{callback:v=>'$'+v.toLocaleString('es-MX'), font:{size:11}}, grid:{color:'rgba(0,0,0,0.06)'} }
       },
-      scales: {
-        x: { title: { display: true, text: 'Cambio de precio %', font: { size: 12 } }, grid: { display: false }, ticks: { autoSkip: true, maxTicksLimit: 13, font: { size: 11 } } },
-        y: { title: { display: true, text: 'Δ vs histórico %', font: { size: 12 } }, ticks: { font: { size: 11 }, callback: v => (v >= 0 ? '+' : '') + v + '%' }, grid: { color: 'rgba(0,0,0,0.05)' } }
-      }
-    },
-    plugins: [{
-      id: 'vLine',
-      afterDatasetsDraw(chart) {
-        const idx = currentDelta + 60;
-        if (idx < 0 || idx > 120) return;
-        const x = chart.scales.x.getPixelForValue(idx);
-        const { top, bottom } = chart.scales.y;
-        chart.ctx.save();
-        chart.ctx.strokeStyle = '#185FA5';
-        chart.ctx.lineWidth = 2;
-        chart.ctx.setLineDash([4, 4]);
-        chart.ctx.beginPath();
-        chart.ctx.moveTo(x, top);
-        chart.ctx.lineTo(x, bottom);
-        chart.ctx.stroke();
-        chart.ctx.restore();
-      }
-    }]
+      annotation: {}
+    }
   });
+  updateSimChart(0);
 }
 
-// ─── Chart: beta temporal ─────────────────────────────────────────────────
+function updateSimChart(currentDelta) {
+  if (!APP.chartSim) return;
+  // Draw vertical line via dataset overlay
+  const idx = currentDelta + 60;
+  APP.chartSim.data.datasets = APP.chartSim.data.datasets.filter(d => d.label !== '__line');
+  const s = APP.currentSku;
+  const deltas = Array.from({length:121}, (_,i) => -60+i);
+  const lineData = deltas.map((_,i) => i===idx ? simulateRaw(s, currentDelta).ingreso : null);
+  APP.chartSim.data.datasets.push({
+    label:'__line', data:lineData, borderColor:'rgba(24,95,165,0.6)', borderWidth:2,
+    borderDash:[4,4], pointRadius:0, tension:0, spanGaps:false
+  });
+  APP.chartSim.update('none');
+}
+
+// ─── Beta temporal chart ────────────────────────────────────────────
 function renderBetaChart() {
-  const card = document.getElementById('card-beta-temporal');
-  if (!currentSku) { card.style.display = 'none'; return; }
+  if (!APP.currentSku || BETAS_MENSUAL.length === 0) {
+    document.getElementById('card-beta-temporal').style.display = 'none';
+    return;
+  }
+  const s = APP.currentSku;
+  const data = BETAS_MENSUAL.filter(b => b.sku === s.sku).sort((a,b) => a.mes.localeCompare(b.mes));
+  if (data.length < 2) { document.getElementById('card-beta-temporal').style.display='none'; return; }
+  document.getElementById('card-beta-temporal').style.display = '';
 
-  const skuBetas = BETAS_MENSUAL.filter(b => b.sku === currentSku.sku).sort((a, b) => a.mes.localeCompare(b.mes));
-  if (skuBetas.length === 0) { card.style.display = 'none'; return; }
+  const labels = data.map(b => b.mes);
+  const betas  = data.map(b => b.beta);
+  const colors = data.map(b => (b.p_value !== null && b.p_value < 0.10) ? '#A32D2D' : 'rgba(163,45,45,0.3)');
 
-  card.style.display = 'block';
-  if (chartBeta) chartBeta.destroy();
-
-  const pvals     = skuBetas.map(b => b.p_value ?? 1);
-  const sigColors = pvals.map(p => p < 0.10 ? 'rgba(163,45,45,0.9)' : 'rgba(163,45,45,0.25)');
-
-  chartBeta = new Chart(document.getElementById('chart-beta').getContext('2d'), {
-    type: 'line',
+  if (APP.chartBeta) APP.chartBeta.destroy();
+  const ctx = document.getElementById('chart-beta').getContext('2d');
+  APP.chartBeta = new Chart(ctx, {
     data: {
-      labels: skuBetas.map(b => b.mes),
+      labels,
       datasets: [
-        {
-          label: 'β mensual', data: skuBetas.map(b => b.beta),
-          borderColor: '#A32D2D', backgroundColor: 'rgba(163,45,45,0.07)',
-          borderWidth: 2, tension: 0.3, pointRadius: 5,
-          pointBackgroundColor: sigColors, pointHoverRadius: 7
-        },
-        {
-          label: 'β global', data: skuBetas.map(() => currentSku.beta),
-          borderColor: '#185FA5', borderWidth: 1.5, borderDash: [5, 4],
-          pointRadius: 0, fill: false
-        }
+        { type:'scatter', label:'β mensual', data:betas.map((b,i)=>({x:i,y:b})), backgroundColor:colors, pointRadius:6 },
+        { type:'line', label:'β global', data:Array(data.length).fill(s.beta), borderColor:'#185FA5', borderWidth:1.5, borderDash:[4,4], pointRadius:0, tension:0 }
       ]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'top', align: 'end', labels: { font: { size: 12 }, boxWidth: 14 } },
-        tooltip: { callbacks: { label: c => c.datasetIndex === 0 ? `β=${c.parsed.y.toFixed(3)} (p=${pvals[c.dataIndex].toFixed(3)})` : `β global=${c.parsed.y?.toFixed(3)}` } }
-      },
-      scales: {
-        x: { ticks: { font: { size: 11 }, maxRotation: 45 }, grid: { display: false } },
-        y: { title: { display: true, text: 'β (elasticidad)', font: { size: 12 } }, ticks: { font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } }
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top'}, tooltip:{mode:'index',intersect:false} },
+      scales:{
+        x:{ type:'linear', ticks:{callback:(_,i)=>labels[i]||'', maxTicksLimit:10, font:{size:11}}, grid:{display:false} },
+        y:{ ticks:{font:{size:11}}, grid:{color:'rgba(0,0,0,0.06)'}, title:{display:true,text:'β'} }
       }
     }
   });
 }
 
-// ─── Tabla ejecutiva ──────────────────────────────────────────────────────
+// ─── Scenarios table ────────────────────────────────────────────────
+const ESCENARIOS_DELTA = [-20,-10,-5,0,5,10,20];
+const PROMOS = [
+  { label:'3x2 (pagas 2)',  factor: 2/3,  deltaPct:0 },
+  { label:'2x1 (pagas 1)',  factor: 1/2,  deltaPct:0 },
+  { label:'2do al 50%',     factor: 0.75, deltaPct:0 }
+];
+
+function renderScenarios() {
+  const s = APP.currentSku;
+  if (!s) return;
+
+  // Determine action and banner
+  const accion = s.accion;
+  const banner = document.getElementById('decision-banner');
+  const labelEl = document.getElementById('decision-label');
+  const detailEl = document.getElementById('decision-detail');
+  if (accion && !['NO_RECOMENDAR','MANTENER'].includes(accion)) {
+    banner.style.display = 'flex';
+    labelEl.textContent = getActLabel(accion);
+    const rec = s.precio_recomendado;
+    const delta = ((rec / s.precio_actual - 1)*100).toFixed(1);
+    detailEl.textContent = `Precio recomendado: ${fmt$dec(rec)} (${delta > 0?'+':''}${delta}% sobre precio actual)`;
+  } else {
+    banner.style.display = 'none';
+  }
+
+  // Find best score among escenarios
+  const allSims = ESCENARIOS_DELTA.map(d => ({ d, sim:simulateRaw(s,d) }));
+  const bestScore = Math.max(...allSims.map(x => x.sim.score));
+
+  const tbody = document.getElementById('escenarios-body');
+  tbody.innerHTML = '';
+
+  // Price scenarios
+  allSims.forEach(({ d, sim }) => {
+    const isCurrent = d === 0;
+    const isBest    = Math.abs(sim.score - bestScore) < 0.001;
+    const tr = document.createElement('tr');
+    if (isBest) tr.className = 'best-score';
+    if (isCurrent) tr.className = (isBest ? 'best-score' : '') + ' current';
+    tr.innerHTML = `
+      <td>${isCurrent ? '<strong>Precio actual (0%)</strong>' : (d>0?'+':'')+d+'%'}${isBest?' ★':''}</td>
+      <td class="numeric">${fmt$dec(sim.precio_nuevo)}</td>
+      <td class="numeric">${fmtNum(sim.unidades)}</td>
+      <td class="numeric">${fmt$(sim.ingreso)}</td>
+      <td class="numeric">${sim.margen !== null ? fmt$(sim.margen) : '—'}</td>
+      <td class="numeric ${sim.delta_ingreso_pct>=0?'metric-positive':'metric-negative'}">${isCurrent?'base':fmtPct(sim.delta_ingreso_pct)}</td>
+      <td class="numeric ${sim.delta_margen_pct!==null&&sim.delta_margen_pct>=0?'metric-positive':sim.delta_margen_pct!==null?'metric-negative':''}">${isCurrent?'base':sim.delta_margen_pct!==null?fmtPct(sim.delta_margen_pct):'—'}</td>
+      <td class="numeric">${sim.score.toFixed(1)}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // Divider
+  const divRow = document.createElement('tr');
+  divRow.innerHTML = `<td colspan="8" style="font-size:11px;color:var(--text-tertiary);padding:6px 10px;background:var(--bg-secondary);">PROMOCIONES (precio efectivo pagado)</td>`;
+  tbody.appendChild(divRow);
+
+  // Promo rows
+  PROMOS.forEach(promo => {
+    const sim = simulateRaw(s, 0, promo.factor);
+    const tr = document.createElement('tr');
+    tr.className = 'promo';
+    tr.innerHTML = `
+      <td>${promo.label}</td>
+      <td class="numeric">${fmt$dec(sim.precio_nuevo)}</td>
+      <td class="numeric">${fmtNum(sim.unidades)}</td>
+      <td class="numeric">${fmt$(sim.ingreso)}</td>
+      <td class="numeric">${sim.margen !== null ? fmt$(sim.margen) : '—'}</td>
+      <td class="numeric ${sim.delta_ingreso_pct>=0?'metric-positive':'metric-negative'}">${fmtPct(sim.delta_ingreso_pct)}</td>
+      <td class="numeric ${sim.delta_margen_pct!==null&&sim.delta_margen_pct>=0?'metric-positive':sim.delta_margen_pct!==null?'metric-negative':''}">${sim.delta_margen_pct!==null?fmtPct(sim.delta_margen_pct):'—'}</td>
+      <td class="numeric">${sim.score.toFixed(1)}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// TABLA EJECUTIVA
+// ════════════════════════════════════════════════════════════════════
 function renderSummaryStats() {
-  const counts = {};
-  SKUS.forEach(s => { counts[s.clasificacion] = (counts[s.clasificacion] || 0) + 1; });
-  const orden = ['ELASTICO', 'Elastico_NS', 'Inelastico', 'Sin_reaccion', 'Sin datos'];
-  document.getElementById('summary-stats').innerHTML = orden.filter(c => counts[c])
-    .map(c => `<div class="summary-card"><div class="num">${counts[c]}</div><div class="lbl">${getClassLabel(c)}</div></div>`).join('');
+  const SKUS = APP.SKUS;
+  const counts = {
+    elastico:   SKUS.filter(s=>s.clasificacion==='ELASTICO').length,
+    ns:         SKUS.filter(s=>s.clasificacion==='Elastico_NS').length,
+    inelastico: SKUS.filter(s=>s.clasificacion==='Inelastico').length,
+    sinreac:    SKUS.filter(s=>s.clasificacion==='Sin_reaccion').length,
+    sindatos:   SKUS.filter(s=>s.clasificacion==='Sin datos').length
+  };
+  const actCounts = {
+    bajar:  SKUS.filter(s=>s.accion==='BAJAR').length,
+    subir:  SKUS.filter(s=>['SUBIR','SUBIR_DIRECCIONAL'].includes(s.accion)).length,
+    mant:   SKUS.filter(s=>s.accion==='MANTENER').length,
+    sinrec: SKUS.filter(s=>['NO_RECOMENDAR','INVESTIGAR','EXPLORATORIO'].includes(s.accion)).length
+  };
+  document.getElementById('summary-stats').innerHTML = `
+    <div class="summary-card"><div class="num">${SKUS.length}</div><div class="lbl">SKUs totales</div></div>
+    <div class="summary-card" style="background:var(--c-red-50);"><div class="num" style="color:var(--c-red-800);">${counts.elastico}</div><div class="lbl">Elásticos ★</div></div>
+    <div class="summary-card" style="background:var(--c-amber-50);"><div class="num" style="color:var(--c-amber-800);">${counts.inelastico}</div><div class="lbl">Inelásticos</div></div>
+    <div class="summary-card" style="background:var(--c-blue-50);"><div class="num" style="color:var(--c-blue-800);">${actCounts.bajar}</div><div class="lbl">Bajar precio</div></div>
+    <div class="summary-card" style="background:var(--c-teal-50);"><div class="num" style="color:var(--c-teal-800);">${actCounts.subir}</div><div class="lbl">Subir precio</div></div>
+    <div class="summary-card"><div class="num">${actCounts.mant}</div><div class="lbl">Mantener</div></div>
+    <div class="summary-card" style="background:var(--c-purple-50);"><div class="num" style="color:var(--c-purple-800);">${actCounts.sinrec}</div><div class="lbl">Sin recom.</div></div>`;
 }
 
 function renderTabla() {
-  const fDept   = document.getElementById('filtro-dept-tabla').value;
-  const fAccion = document.getElementById('filtro-accion-tabla').value;
-  const fClase  = document.getElementById('filtro-clase-tabla').value;
-  const fBusq   = document.getElementById('buscar-tabla').value.toLowerCase();
+  const dept   = document.getElementById('filtro-dept-tabla').value;
+  const accion = document.getElementById('filtro-accion-tabla').value;
+  const clase  = document.getElementById('filtro-clase-tabla').value;
+  const q      = (document.getElementById('buscar-tabla').value || '').toLowerCase();
+  let list = APP.SKUS;
+  if (dept)   list = list.filter(s => s.departamento === dept);
+  if (accion) list = list.filter(s => s.accion === accion);
+  if (clase)  list = list.filter(s => s.clasificacion === clase);
+  if (q)      list = list.filter(s => String(s.sku).toLowerCase().includes(q) || s.nombre.toLowerCase().includes(q));
 
-  let list = SKUS;
-  if (fDept)   list = list.filter(s => s.departamento === fDept);
-  if (fAccion) list = list.filter(s => s.accion === fAccion);
-  if (fClase)  list = list.filter(s => s.clasificacion === fClase);
-  if (fBusq)   list = list.filter(s => s.nombre.toLowerCase().includes(fBusq) || String(s.sku).includes(fBusq));
-  list = [...list].sort((a, b) => (a.beta ?? 999) - (b.beta ?? 999));
-
-  const html = list.map(s => {
-    const betaStr = s.beta !== null ? s.beta.toFixed(2) : 'NA';
-    const cambio  = s.precio_recomendado !== s.precio_actual
-      ? ` (${(((s.precio_recomendado / s.precio_actual) - 1) * 100).toFixed(1)}%)` : '';
-    return `<tr style="cursor:pointer;" onclick="selectSkuFromTable(${s.sku})">
-      <td>${s.sku}</td><td>${s.nombre}</td>
-      <td style="font-size:12px;color:var(--text-secondary);">${s.departamento}</td>
+  const tbody = document.getElementById('tabla-body');
+  tbody.innerHTML = '';
+  list.forEach(s => {
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.title = 'Ver en Simulador';
+    tr.onclick = () => { activateTab('simulador'); selectSku(s.sku); };
+    const r2txt = s.r2 !== null && s.r2 !== undefined ? s.r2.toFixed(2) : '—';
+    const ptxt  = s.p_value !== null ? s.p_value.toFixed(3) : '—';
+    tr.innerHTML = `
+      <td>${s.sku}</td>
+      <td>${s.nombre}</td>
+      <td>${s.departamento}</td>
       <td><span class="badge ${getClassBadge(s.clasificacion)}">${getClassLabel(s.clasificacion)}</span></td>
-      <td class="numeric">${betaStr}</td>
+      <td class="numeric">${s.beta !== null ? s.beta.toFixed(2) : '—'}</td>
+      <td class="numeric">${ptxt}</td>
+      <td class="numeric">${r2txt}</td>
+      <td class="numeric">${s.n_trans || '—'}</td>
       <td class="numeric">${fmt$dec(s.precio_actual)}</td>
-      <td class="numeric">${fmt$dec(s.precio_recomendado)}${cambio}</td>
-      <td><span class="badge ${getActionBadge(s.accion)}">${getActionLabel(s.accion)}</span></td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('tabla-body').innerHTML = html ||
-    '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-tertiary);">Sin resultados</td></tr>';
-}
-
-function selectSkuFromTable(sku) {
-  const found = SKUS.find(s => s.sku === sku);
-  if (!found) return;
-  currentSku = found;
-  document.getElementById('sku-select').value = sku;
-  document.querySelector('[data-tab="simulador"]').click();
-  renderAll();
-}
-
-// ─── Plan de Acción ───────────────────────────────────────────────────────
-let planFiltroAccion = '';
-let planFiltroDept   = '';
-let planFiltroMes    = '';
-
-const CHIP_CONFIG = [
-  { accion: 'BAJAR',             cls: 'chip-bajar',      icon: '↓', label: 'BAJAR' },
-  { accion: 'SUBIR',             cls: 'chip-subir',      icon: '↑', label: 'SUBIR' },
-  { accion: 'SUBIR_DIRECCIONAL', cls: 'chip-subir-dir',  icon: '↑', label: 'SUBIR (dir.)' },
-  { accion: 'MANTENER',          cls: 'chip-mantener',   icon: '=', label: 'MANTENER' },
-  { accion: 'INVESTIGAR',        cls: 'chip-investigar', icon: '?', label: 'INVESTIGAR' },
-];
-const ACCION_ORDER = { BAJAR: 0, SUBIR: 1, SUBIR_DIRECCIONAL: 2, MANTENER: 3, INVESTIGAR: 4 };
-
-function initPlanFilters() {
-  const depts = [...new Set(SKUS.map(s => s.departamento))].sort();
-  const deptEl = document.getElementById('plan-dept');
-  depts.forEach(d => {
-    const o = document.createElement('option');
-    o.value = d; o.textContent = d;
-    deptEl.appendChild(o);
+      <td class="numeric" style="color:var(--c-teal-800);">${fmt$dec(s.precio_recomendado)}</td>
+      <td><span class="badge ${getActBadge(s.accion)}">${getActLabel(s.accion)}</span></td>`;
+    tbody.appendChild(tr);
   });
-  const mesEl = document.getElementById('plan-mes');
-  MESES_DISPONIBLES.forEach(m => {
-    const [y, mo] = m.split('-');
-    const lbl = new Date(+y, +mo - 1, 1).toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
-    const o = document.createElement('option');
-    o.value = m;
-    o.textContent = lbl.charAt(0).toUpperCase() + lbl.slice(1);
-    mesEl.appendChild(o);
-  });
+  if (!list.length) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--text-tertiary);padding:20px;">Sin resultados para los filtros seleccionados</td></tr>';
 }
 
-function computeRecomendacion(sku, mes) {
-  const deltaPct = ((sku.precio_recomendado / sku.precio_actual) - 1) * 100;
-  const rec = simulate(sku, deltaPct, mes || '');
-  let alerta = false;
-  if (mes && BETAS_MENSUAL.length > 0 && sku.beta !== null) {
-    const mb = BETAS_MENSUAL.find(b => b.sku === sku.sku && b.mes === mes);
-    if (mb && Math.sign(mb.beta) !== Math.sign(sku.beta)) alerta = true;
+// ════════════════════════════════════════════════════════════════════
+// PLAN DE ACCIÓN
+// ════════════════════════════════════════════════════════════════════
+function renderPlan() {
+  const dept = document.getElementById('plan-dept').value;
+  const mes  = document.getElementById('plan-mes').value;
+  let list = APP.SKUS;
+  if (dept) list = list.filter(s => s.departamento === dept);
+
+  // Chips
+  const chipDef = [
+    { key:'BAJAR',              label:'Bajar precio',   cls:'chip-bajar',    keys:['BAJAR'] },
+    { key:'SUBIR',              label:'Subir precio',   cls:'chip-subir',    keys:['SUBIR','SUBIR_DIRECCIONAL'] },
+    { key:'MANTENER',           label:'Mantener',       cls:'chip-mantener', keys:['MANTENER'] },
+    { key:'NO_RECOMENDAR',      label:'Sin recom.',     cls:'chip-sinrec',   keys:['NO_RECOMENDAR','INVESTIGAR','EXPLORATORIO'] }
+  ];
+  const chipEl = document.getElementById('plan-chips');
+  chipEl.innerHTML = `<div class="plan-chip chip-todos ${APP.planFilter===null?'active':''}" onclick="setPlanFilter(null)">
+    <div class="chip-num">${list.length}</div><div class="chip-lbl">Todos</div></div>`;
+  chipDef.forEach(cd => {
+    const count = list.filter(s => cd.keys.includes(s.accion)).length;
+    const isActive = cd.keys.includes(APP.planFilter);
+    chipEl.innerHTML += `<div class="plan-chip ${cd.cls} ${isActive?'active':''}" onclick="setPlanFilter('${cd.key}')">
+      <div class="chip-num">${count}</div><div class="chip-lbl">${cd.label}</div></div>`;
+  });
+
+  // Filter by chip
+  if (APP.planFilter) {
+    const cd = chipDef.find(c => c.key === APP.planFilter);
+    if (cd) list = list.filter(s => cd.keys.includes(s.accion));
   }
-  return { ...rec, alerta };
-}
 
-function renderChipsAccion(baseList) {
-  const counts = {};
-  baseList.forEach(s => { counts[s.accion] = (counts[s.accion] || 0) + 1; });
-  const chips = CHIP_CONFIG.map(cfg => {
-    const n = counts[cfg.accion] || 0;
-    const active = planFiltroAccion === cfg.accion ? ' active' : '';
-    return `<div class="plan-chip ${cfg.cls}${active}" onclick="togglePlanChip('${cfg.accion}')">
-      <div class="chip-num">${n}</div>
-      <div class="chip-lbl">${cfg.icon} ${cfg.label}</div>
-    </div>`;
-  }).join('');
-  const todosActive = planFiltroAccion === '' ? ' active' : '';
-  document.getElementById('plan-chips').innerHTML = chips +
-    `<div class="plan-chip chip-todos${todosActive}" onclick="togglePlanChip('')">Todos<br><strong>${baseList.length}</strong></div>`;
-}
-
-function togglePlanChip(accion) {
-  planFiltroAccion = planFiltroAccion === accion ? '' : accion;
-  renderPlanDeAccion();
-}
-
-function renderPlanDeAccion() {
-  let base = SKUS;
-  if (planFiltroDept) base = base.filter(s => s.departamento === planFiltroDept);
-
-  renderChipsAccion(base);
-
-  let list = planFiltroAccion ? base.filter(s => s.accion === planFiltroAccion) : base;
-  list = [...list].sort((a, b) => (ACCION_ORDER[a.accion] ?? 9) - (ACCION_ORDER[b.accion] ?? 9));
-
-  const mes = planFiltroMes;
-  const html = list.map(s => {
-    const rec = computeRecomendacion(s, mes);
-    const betaStr  = rec.beta_usado !== null ? rec.beta_usado.toFixed(3) : 'NA';
-    const betaSrc  = mes && BETAS_MENSUAL.length && rec.beta_usado !== s.beta ? `mes ${mes}` : 'global';
-    const dPrecio  = ((s.precio_recomendado / s.precio_actual) - 1) * 100;
-    const dPStr    = Math.abs(dPrecio) < 0.05 ? '—' : fmtPct(dPrecio);
-    const dPCls    = dPrecio > 0 ? 'metric-positive' : dPrecio < 0 ? 'metric-negative' : '';
-    const margenStr= rec.margen !== null ? fmt$(rec.margen) : '—';
-    const alerta   = rec.alerta ? '<span class="badge-alerta">⚠ revisar</span>' : '';
-
-    return `<tr style="cursor:pointer;" onclick="selectSkuFromPlan(${s.sku})">
-      <td>
-        <div style="font-weight:500;font-size:13px;">${s.nombre}</div>
-        <div style="font-size:11px;color:var(--text-secondary);">${s.sku} · ${s.departamento}</div>
-      </td>
-      <td><span class="badge ${getActionBadge(s.accion)}">${getActionLabel(s.accion)}</span>${alerta}</td>
-      <td style="font-size:12px;">
-        <span style="font-variant-numeric:tabular-nums;">${betaStr}</span>
-        <span style="color:var(--text-tertiary);font-size:11px;"> ${betaSrc}</span>
-      </td>
+  // Populate plan table
+  const tbody = document.getElementById('plan-body');
+  tbody.innerHTML = '';
+  list.forEach(s => {
+    const beta = getBetaForSku(s, mes);
+    const skuWithBeta = { ...s, beta };
+    const rec    = s.precio_recomendado;
+    const simRec = simulateRaw(skuWithBeta, Math.round((rec / s.precio_actual - 1) * 100));
+    const deltaPct = ((rec / s.precio_actual - 1) * 100).toFixed(1);
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.title = 'Ver en Simulador';
+    tr.onclick = () => { activateTab('simulador'); selectSku(s.sku); };
+    tr.innerHTML = `
+      <td>${s.nombre}<br><span style="font-size:11px;color:var(--text-tertiary);">${s.sku}</span></td>
+      <td><span class="badge ${getActBadge(s.accion)}">${getActLabel(s.accion)}</span></td>
+      <td class="numeric">${beta !== null ? beta.toFixed(2) : '—'}</td>
       <td class="numeric">${fmt$dec(s.precio_actual)}</td>
-      <td class="numeric" style="font-weight:500;">${fmt$dec(s.precio_recomendado)}</td>
-      <td class="numeric ${dPCls}">${dPStr}</td>
-      <td class="numeric">${fmt$(rec.ingreso)}</td>
-      <td class="numeric">${margenStr}</td>
-      <td class="numeric">${rec.score.toFixed(1)}</td>
-    </tr>`;
-  }).join('');
-
-  document.getElementById('plan-body').innerHTML = html ||
-    '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-tertiary);">Sin resultados para los filtros seleccionados</td></tr>';
-}
-
-function selectSkuFromPlan(sku) {
-  const found = SKUS.find(s => s.sku === sku);
-  if (!found) return;
-  currentSku = found;
-  document.getElementById('sku-select').value = sku;
-  document.querySelector('[data-tab="simulador"]').click();
-  renderAll();
-}
-
-// ─── Render all ────────────────────────────────────────────────────────────
-function renderAll() {
-  renderSkuInfo();
-  renderSimulation();
-  renderEscenarios();
-  renderBetaChart();
-}
-
-function setSlider(val) {
-  document.getElementById('price-slider').value = val;
-  renderSimulation();
-  renderEscenarios();
-}
-
-function setSliderToOptimal() {
-  if (!currentSku) return;
-  const delta = Math.round(((currentSku.precio_recomendado / currentSku.precio_actual) - 1) * 100);
-  // Clamp only to slider range, no business restriction
-  const clamped = Math.max(-60, Math.min(60, delta));
-  setSlider(clamped);
-}
-
-// ─── Event listeners ───────────────────────────────────────────────────────
-document.getElementById('sku-select').addEventListener('change', e => {
-  currentSku = SKUS.find(s => s.sku === parseInt(e.target.value)) || null;
-  renderAll();
-});
-document.getElementById('fil-dept').addEventListener('change', () => {
-  document.getElementById('fil-clase').value = '';
-  rebuildClases();
-});
-document.getElementById('fil-clase').addEventListener('change', rebuildSkus);
-document.getElementById('fil-mes').addEventListener('change', e => {
-  currentMes = e.target.value;
-  renderAll();
-});
-document.getElementById('price-slider').addEventListener('input', () => {
-  renderSimulation();
-  renderEscenarios();
-});
-document.getElementById('plan-dept').addEventListener('change', e => { planFiltroDept = e.target.value; renderPlanDeAccion(); });
-document.getElementById('plan-mes').addEventListener('change', e => { planFiltroMes = e.target.value; renderPlanDeAccion(); });
-document.getElementById('filtro-dept-tabla').addEventListener('change', renderTabla);
-document.getElementById('filtro-accion-tabla').addEventListener('change', renderTabla);
-document.getElementById('filtro-clase-tabla').addEventListener('change', renderTabla);
-document.getElementById('buscar-tabla').addEventListener('input', renderTabla);
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+      <td class="numeric" style="color:var(--c-teal-800);font-weight:500;">${fmt$dec(rec)}</td>
+      <td class="numeric ${+deltaPct>=0?'metric-positive':'metric-negative'}">${+deltaPct>=0?'+':''}${deltaPct}%</td>
+      <td class="numeric">${fmt$(simRec.ingreso)}</td>
+      <td class="numeric">${simRec.margen !== null ? fmt$(simRec.margen) : '—'}</td>
+      <td class="numeric">${simRec.score.toFixed(1)}</td>`;
+    tbody.appendChild(tr);
   });
+  if (!list.length) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-tertiary);padding:20px;">Sin SKUs para los filtros seleccionados</td></tr>';
+}
+
+function getBetaForSku(sku, mes) {
+  if (mes && BETAS_MENSUAL.length > 0) {
+    const m = BETAS_MENSUAL.find(b => b.sku === sku.sku && b.mes === mes);
+    if (m) return m.beta;
+  }
+  return sku.beta;
+}
+
+function setPlanFilter(key) {
+  APP.planFilter = key;
+  renderPlan();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EXPORT
+// ════════════════════════════════════════════════════════════════════
+function csvEscape(v) {
+  const s = String(v ?? '');
+  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s;
+}
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r => r.map(csvEscape).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+}
+
+function exportRecomendaciones() {
+  const header = ['SKU','Nombre','Departamento','Clase','Clasificacion','Beta','P_valor','R2','N_trans','Precio_actual','Precio_recomendado','Delta_pct','Accion'];
+  const rows = APP.SKUS.map(s => {
+    const d = ((s.precio_recomendado / s.precio_actual - 1)*100).toFixed(1);
+    return [s.sku, s.nombre, s.departamento, s.clase, s.clasificacion,
+            s.beta!==null?s.beta.toFixed(4):'', s.p_value!==null?s.p_value.toFixed(4):'',
+            s.r2!==null&&s.r2!==undefined?s.r2.toFixed(4):'', s.n_trans||'',
+            s.precio_actual.toFixed(2), s.precio_recomendado.toFixed(2), d, s.accion];
+  });
+  downloadCSV([header, ...rows], 'recomendaciones_pricing.csv');
+}
+
+function exportEscenarios() {
+  const header = ['SKU','Nombre','Escenario','Precio_efectivo','Unidades_est','Ingreso','Margen','Delta_ingreso_pct','Delta_margen_pct','Score'];
+  const rows = [];
+  APP.SKUS.forEach(s => {
+    ESCENARIOS_DELTA.forEach(d => {
+      const sim = simulateRaw(s, d);
+      rows.push([s.sku, s.nombre, (d>=0?'+':'')+d+'%',
+                 sim.precio_nuevo.toFixed(2), Math.round(sim.unidades), Math.round(sim.ingreso),
+                 sim.margen!==null?Math.round(sim.margen):'',
+                 sim.delta_ingreso_pct.toFixed(2), sim.delta_margen_pct!==null?sim.delta_margen_pct.toFixed(2):'',
+                 sim.score.toFixed(2)]);
+    });
+    PROMOS.forEach(promo => {
+      const sim = simulateRaw(s, 0, promo.factor);
+      rows.push([s.sku, s.nombre, promo.label,
+                 sim.precio_nuevo.toFixed(2), Math.round(sim.unidades), Math.round(sim.ingreso),
+                 sim.margen!==null?Math.round(sim.margen):'',
+                 sim.delta_ingreso_pct.toFixed(2), sim.delta_margen_pct!==null?sim.delta_margen_pct.toFixed(2):'',
+                 sim.score.toFixed(2)]);
+    });
+  });
+  downloadCSV([header, ...rows], 'escenarios_pricing.csv');
+}
+
+// ════════════════════════════════════════════════════════════════════
+// UI HELPERS — screen / tab switching
+// ════════════════════════════════════════════════════════════════════
+function showScreen(name) {
+  ['upload','mapping','validation','dashboard'].forEach(s => {
+    const el = document.getElementById('screen-' + s);
+    if (el) el.style.display = s === name ? '' : 'none';
+  });
+}
+
+function activateTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 5000);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// EVENT LISTENERS — init
+// ════════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // File input
+  document.getElementById('file-input').addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  // Drag & drop
+  const dz = document.getElementById('drop-zone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  // Main tabs
+  document.getElementById('main-tabs').addEventListener('click', e => {
+    const tab = e.target.dataset.tab;
+    if (tab) activateTab(tab);
+  });
+
+  // Slider live update
+  document.getElementById('price-slider').addEventListener('input', onSlider);
+
+  // Tabla filters (already wired via onchange attrs, but also search)
+  document.getElementById('buscar-tabla').addEventListener('input', renderTabla);
 });
 
-// ─── Init ──────────────────────────────────────────────────────────────────
-initFilters();
-initPlanFilters();
-renderSummaryStats();
-renderTabla();
-renderPlanDeAccion();
-</script>
+
 </body>
 </html>
