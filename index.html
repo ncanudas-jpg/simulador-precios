@@ -144,8 +144,8 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .footer { margin-top: 32px; padding-top: 16px; border-top: 0.5px solid var(--border); font-size: 12px; color: var(--text-tertiary); text-align: center; }
 .brand-header { background: var(--om-black); color: white; border-radius: 16px; padding: 22px; margin-bottom: 22px; box-shadow: 0 18px 42px rgba(17,17,17,0.16); }
 .brand-top { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin-bottom:18px; }
-.brand-logo-card { background:white; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:12px; min-height:56px; }
-.brand-logo-card img { width: 178px; max-width: 48vw; height:auto; display:block; }
+.brand-logo-card { background:var(--om-yellow); border:2px solid rgba(255,212,0,0.9); border-radius:12px; padding:8px 12px; display:flex; align-items:center; gap:12px; min-height:56px; }
+.brand-logo-card img { width: 192px; max-width: 48vw; height:auto; display:block; }
 .brand-kicker { color: var(--om-yellow); font-size:12px; text-transform:uppercase; letter-spacing:0.8px; font-weight:800; margin:0 0 4px; }
 .brand-title { color:white; font-size:30px; line-height:1.12; margin:0; max-width:760px; }
 .brand-copy { color:rgba(255,255,255,0.76); font-size:15px; margin:10px 0 0; max-width:760px; }
@@ -154,6 +154,19 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .process-step { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); border-radius:10px; padding:10px; min-height:72px; }
 .process-step strong { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--om-yellow); color:var(--om-black); font-size:12px; margin-bottom:7px; }
 .process-step span { display:block; color:white; font-size:12px; line-height:1.2; font-weight:650; }
+.dashboard-layout { display:grid; grid-template-columns:280px minmax(0, 1fr); gap:18px; align-items:start; }
+.dashboard-sidebar { position:sticky; top:14px; background:var(--om-black); color:white; border-radius:16px; padding:16px; box-shadow:0 14px 34px rgba(17,17,17,0.14); }
+.dashboard-sidebar-logo { background:var(--om-yellow); border-radius:10px; padding:7px 9px; margin-bottom:14px; }
+.dashboard-sidebar-logo img { display:block; width:100%; height:auto; }
+.dashboard-sidebar h3 { color:var(--om-yellow); margin:12px 0 9px; }
+.dashboard-sidebar .process-nav { grid-template-columns:1fr; gap:7px; margin:0 0 16px; }
+.dashboard-sidebar .process-step { min-height:auto; padding:9px; display:flex; align-items:center; gap:9px; }
+.dashboard-sidebar .process-step strong { margin:0; flex:0 0 auto; }
+.dashboard-sidebar .process-step span { font-size:12px; }
+#screen-dashboard .tabs { display:grid; gap:7px; border-bottom:0; margin:0; }
+#screen-dashboard .tab { width:100%; text-align:left; color:white; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-left:4px solid transparent; border-radius:8px; margin:0; font-weight:650; }
+#screen-dashboard .tab.active { color:var(--om-black); background:var(--om-yellow); border-color:var(--om-yellow); border-left-color:white; font-weight:800; }
+.dashboard-main { min-width:0; }
 .intro-panel { max-width:720px; margin:0 auto 18px; background:white; border:1px solid var(--border); border-radius:16px; padding:20px; text-align:left; box-shadow:0 10px 30px rgba(17,17,17,0.06); }
 .intro-panel h2 { margin:0 0 8px; font-size:20px; font-weight:800; }
 .intro-panel p { margin:0; color:var(--text-secondary); font-size:14px; }
@@ -173,6 +186,8 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
   .brand-header { padding:16px; }
   .brand-title { font-size:24px; }
   .process-nav { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .dashboard-layout { grid-template-columns:1fr; }
+  .dashboard-sidebar { position:static; }
   .limitation-grid { grid-template-columns:1fr; }
   .demo-metrics { grid-template-columns:1fr; }
   .cascade-filters .sku-sel { min-width: 100%; }
@@ -195,22 +210,13 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 <header class="brand-header">
   <div class="brand-top">
     <div class="brand-logo-card">
-      <img src="assets/officemax-logo.svg" alt="Office Depot OfficeMax">
+      <img src="assets/officemax-logo.svg" alt="OfficeMax">
     </div>
     <div class="brand-pill">Pricing dinámico · herramienta reusable</div>
   </div>
   <p class="brand-kicker">OfficeMax pricing lab</p>
   <h1 class="brand-title">Sube ventas, estima elasticidad y recibe recomendaciones por SKU.</h1>
   <p class="brand-copy">Dashboard web para validar datos, simular escenarios de precio y promociones, comparar ingreso/margen y exportar decisiones accionables para el equipo.</p>
-  <div class="process-nav" aria-label="Flujo de 7 funciones">
-    <div class="process-step"><strong>1</strong><span>Cargar CSV o Excel</span></div>
-    <div class="process-step"><strong>2</strong><span>Mapear columnas</span></div>
-    <div class="process-step"><strong>3</strong><span>Validar calidad</span></div>
-    <div class="process-step"><strong>4</strong><span>Calcular base</span></div>
-    <div class="process-step"><strong>5</strong><span>Estimar elasticidad</span></div>
-    <div class="process-step"><strong>6</strong><span>Simular precios</span></div>
-    <div class="process-step"><strong>7</strong><span>Exportar recomendaciones</span></div>
-  </div>
 </header>
 
 <!-- ═══════════════════════════════════════════════
@@ -322,15 +328,34 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
     <button class="btn-secondary" style="flex-shrink:0; margin-top:4px;" onclick="showScreen('upload')">← Cambiar datos</button>
   </div>
 
-  <div class="tabs" id="main-tabs">
-    <button class="tab active" data-tab="simulador">Simulador por SKU</button>
-    <button class="tab" data-tab="tabla">Tabla ejecutiva</button>
-    <button class="tab" data-tab="plan">Plan de Acción</button>
-    <button class="tab" data-tab="exportar">Exportar</button>
-    <button class="tab" data-tab="limitaciones">Limitaciones</button>
-    <button class="tab" data-tab="descriptivo">Dashboard Descriptivo</button>
-    <button class="tab" data-tab="predictivo">Dashboard Predictivo</button>
-  </div>
+  <div class="dashboard-layout">
+    <aside class="dashboard-sidebar" aria-label="Menú de análisis">
+      <div class="dashboard-sidebar-logo">
+        <img src="assets/officemax-logo.svg" alt="OfficeMax">
+      </div>
+      <h3>Flujo de análisis</h3>
+      <div class="process-nav" aria-label="Flujo de 7 funciones">
+        <div class="process-step"><strong>1</strong><span>Cargar CSV o Excel</span></div>
+        <div class="process-step"><strong>2</strong><span>Mapear columnas</span></div>
+        <div class="process-step"><strong>3</strong><span>Validar calidad</span></div>
+        <div class="process-step"><strong>4</strong><span>Calcular base</span></div>
+        <div class="process-step"><strong>5</strong><span>Estimar elasticidad</span></div>
+        <div class="process-step"><strong>6</strong><span>Simular precios</span></div>
+        <div class="process-step"><strong>7</strong><span>Exportar recomendaciones</span></div>
+      </div>
+      <h3>Menú</h3>
+      <div class="tabs" id="main-tabs">
+        <button class="tab active" data-tab="simulador">Simulador por SKU</button>
+        <button class="tab" data-tab="tabla">Tabla ejecutiva</button>
+        <button class="tab" data-tab="plan">Plan de Acción</button>
+        <button class="tab" data-tab="exportar">Exportar</button>
+        <button class="tab" data-tab="limitaciones">Limitaciones</button>
+        <button class="tab" data-tab="descriptivo">Dashboard Descriptivo</button>
+        <button class="tab" data-tab="predictivo">Dashboard Predictivo</button>
+      </div>
+    </aside>
+
+    <main class="dashboard-main">
 
   <!-- ─── TAB 1: SIMULADOR ───────────────────────────────────── -->
   <div class="tab-panel active" id="tab-simulador">
@@ -773,6 +798,9 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
         Línea sólida = histórico · Línea punteada = proyección OLS (unidades ~ tiempo) · Meses con * = proyectados.
       </p>
     </div>
+  </div>
+
+    </main>
   </div>
 
   <div class="footer" id="dash-footer"></div>
