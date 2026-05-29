@@ -149,6 +149,15 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
   .mapping-row { grid-template-columns: 1fr; }
   .export-grid { grid-template-columns: 1fr; }
 }
+/* ─── Analytics Dashboards ─── */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi-delta { font-size: 13px; margin-top: 4px; }
+.kpi-positive { color: var(--c-teal-600); font-weight: 500; }
+.kpi-negative { color: var(--c-red-600); font-weight: 500; }
+.dash-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.dash-chart-wrap { position: relative; height: 260px; margin: 12px 0 4px; }
+.dash-chart-tall  { position: relative; height: 320px; margin: 12px 0 4px; }
+@media (max-width: 860px) { .dash-grid-2 { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -263,6 +272,8 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
     <button class="tab" data-tab="plan">Plan de Acción</button>
     <button class="tab" data-tab="exportar">Exportar</button>
     <button class="tab" data-tab="limitaciones">Limitaciones</button>
+    <button class="tab" data-tab="descriptivo">Dashboard Descriptivo</button>
+    <button class="tab" data-tab="predictivo">Dashboard Predictivo</button>
   </div>
 
   <!-- ─── TAB 1: SIMULADOR ───────────────────────────────────── -->
@@ -549,6 +560,154 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
       <div class="note">
         <strong>Nota académica:</strong> Este modelo de estimación de elasticidad via OLS log-log es un punto de partida robusto para decisiones de pricing táctico. Su simplicidad es también su virtud: los resultados son interpretables y auditables sin infraestructura adicional. Para decisiones estratégicas se recomienda complementar con modelos de demanda jerárquicos o métodos de inferencia causal.
       </div>
+    </div>
+  </div>
+
+  <!-- ─── TAB 6: DASHBOARD DESCRIPTIVO ─────────────────────────── -->
+  <div class="tab-panel" id="tab-descriptivo">
+    <div class="card">
+      <h3>Filtros</h3>
+      <div class="filter-row">
+        <label>Departamento:
+          <select id="dd-dept" onchange="ddRebuildClase()"><option value="">Todos</option></select>
+        </label>
+        <label>Clase:
+          <select id="dd-clase" onchange="renderDescriptivo()"><option value="">Todas</option></select>
+        </label>
+        <span id="dd-canal-wrap" style="display:none;">
+          <label>Canal / Tienda:
+            <select id="dd-canal" onchange="renderDescriptivo()"><option value="">Todos</option></select>
+          </label>
+        </span>
+        <span id="dd-fecha-wrap" style="display:none;gap:8px;align-items:center;">
+          <label>Desde: <select id="dd-mes-desde" onchange="renderDescriptivo()"></select></label>
+          <label>Hasta: <select id="dd-mes-hasta" onchange="renderDescriptivo()"></select></label>
+        </span>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="metric"><div class="metric-label">Ingreso total</div><div class="metric-value" id="dd-kpi-ingreso">—</div></div>
+      <div class="metric"><div class="metric-label">Unidades vendidas</div><div class="metric-value" id="dd-kpi-unidades">—</div></div>
+      <div class="metric"><div class="metric-label">Precio promedio pond.</div><div class="metric-value" id="dd-kpi-precio">—</div></div>
+      <div class="metric"><div class="metric-label">Margen bruto</div><div class="metric-value" id="dd-kpi-margen">—</div><div class="kpi-delta" id="dd-kpi-margen-pct"></div></div>
+      <div class="metric"><div class="metric-label">SKUs analizados</div><div class="metric-value" id="dd-kpi-skus">—</div></div>
+    </div>
+
+    <div id="dd-section-temporal">
+      <div class="dash-grid-2">
+        <div class="card">
+          <h3>Ingreso mensual ($)</h3>
+          <div class="dash-chart-wrap"><canvas id="dd-chart-ingreso"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>Unidades vendidas por mes</h3>
+          <div class="dash-chart-wrap"><canvas id="dd-chart-unidades"></canvas></div>
+        </div>
+      </div>
+      <div class="dash-grid-2">
+        <div class="card">
+          <h3>Precio promedio mensual ($)</h3>
+          <div class="dash-chart-wrap"><canvas id="dd-chart-precio"></canvas></div>
+        </div>
+        <div class="card" id="dd-chart-margen-wrap">
+          <h3>Margen bruto % mensual</h3>
+          <div class="dash-chart-wrap"><canvas id="dd-chart-margen"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-grid-2">
+      <div class="card">
+        <h3>Distribución de ingreso por departamento</h3>
+        <div class="dash-chart-wrap"><canvas id="dd-chart-donut"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Top 10 SKUs por ingreso</h3>
+        <div class="dash-chart-tall"><canvas id="dd-chart-top10"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Precio vs Volumen por SKU — color por clasificación de elasticidad</h3>
+      <div class="dash-chart-wrap"><canvas id="dd-chart-scatter"></canvas></div>
+      <p style="font-size:12px;color:var(--text-tertiary);margin:4px 0 0;">Un punto por SKU filtrado.</p>
+    </div>
+  </div>
+
+  <!-- ─── TAB 7: DASHBOARD PREDICTIVO ───────────────────────────── -->
+  <div class="tab-panel" id="tab-predictivo">
+    <div class="card">
+      <h3>Filtros</h3>
+      <div class="filter-row">
+        <label>Departamento:
+          <select id="pd-dept" onchange="renderPredictivo()"><option value="">Todos</option></select>
+        </label>
+        <label>Acción recomendada:
+          <select id="pd-accion" onchange="renderPredictivo()">
+            <option value="">Todas</option>
+            <option value="BAJAR">Bajar precio</option>
+            <option value="SUBIR">Subir precio</option>
+            <option value="SUBIR_DIRECCIONAL">Subir (dir.)</option>
+            <option value="MANTENER">Mantener</option>
+            <option value="NO_RECOMENDAR">Sin recom.</option>
+          </select>
+        </label>
+        <label>Elasticidad:
+          <select id="pd-clase-el" onchange="renderPredictivo()">
+            <option value="">Todas</option>
+            <option value="ELASTICO">Elástico ★</option>
+            <option value="Elastico_NS">Elástico n.s.</option>
+            <option value="Inelastico">Inelástico</option>
+            <option value="Sin_reaccion">Sin reacción</option>
+          </select>
+        </label>
+        <label>Horizonte de forecast:
+          <select id="pd-horizonte" onchange="renderPredictivo()">
+            <option value="3">3 meses</option>
+            <option value="6" selected>6 meses</option>
+            <option value="12">12 meses</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="metric"><div class="metric-label">Ingreso proyectado (rec. aplicadas)</div><div class="metric-value" id="pd-kpi-proyectado">—</div></div>
+      <div class="metric"><div class="metric-label">Δ Ingreso esperado</div><div class="metric-value" style="font-size:18px;color:var(--text-secondary);">vs actual</div><div class="kpi-delta" id="pd-kpi-delta-ing">—</div></div>
+      <div class="metric"><div class="metric-label">Δ Margen esperado</div><div class="metric-value" style="font-size:18px;color:var(--text-secondary);">vs actual</div><div class="kpi-delta" id="pd-kpi-delta-mar">—</div></div>
+      <div class="metric"><div class="metric-label">SKUs con acción de precio</div><div class="metric-value" id="pd-kpi-accion">—</div></div>
+    </div>
+
+    <div class="dash-grid-2">
+      <div class="card">
+        <h3>Precio actual vs precio recomendado</h3>
+        <div class="dash-chart-wrap"><canvas id="pd-chart-scatter"></canvas></div>
+        <p style="font-size:12px;color:var(--text-tertiary);margin:4px 0 0;">Puntos sobre la diagonal = precio rec. mayor al actual.</p>
+      </div>
+      <div class="card">
+        <h3>Δ Ingreso esperado por grupo de acción</h3>
+        <div class="dash-chart-wrap"><canvas id="pd-chart-waterfall"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Ingreso actual vs proyectado por departamento</h3>
+      <div class="dash-chart-wrap"><canvas id="pd-chart-comparativa"></canvas></div>
+    </div>
+
+    <div class="card" id="pd-beta-section">
+      <h3>Evolución de elasticidad β por departamento</h3>
+      <div class="dash-chart-wrap"><canvas id="pd-chart-beta"></canvas></div>
+      <p style="font-size:12px;color:var(--text-tertiary);margin:4px 0 0;">β promedio mensual por departamento (ventana 6 meses deslizante).</p>
+    </div>
+
+    <div class="card" id="pd-forecast-section">
+      <h3>Forecast de demanda — proyección lineal por departamento</h3>
+      <div class="dash-chart-tall"><canvas id="pd-chart-forecast"></canvas></div>
+      <p style="font-size:12px;color:var(--text-tertiary);margin:4px 0 0;">
+        Línea sólida = histórico · Línea punteada = proyección OLS (unidades ~ tiempo) · Meses con * = proyectados.
+      </p>
     </div>
   </div>
 
@@ -1160,6 +1319,8 @@ function buildAndShowDashboard() {
   renderSummaryStats();
   renderTabla();
   renderPlan();
+  initDescriptivo();
+  initPredictivo();
   activateTab('simulador');
   showScreen('dashboard');
 
@@ -1674,6 +1835,560 @@ function exportEscenarios() {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// DASHBOARD DESCRIPTIVO
+// ════════════════════════════════════════════════════════════════════
+let DASH_DESC_CHARTS = {};
+const CHART_COLORS = ['#111111','#0F6E56','#A32D2D','#534AB7','#854F0B','#1A6B35','#5F5E5A','#00838f','#c2185b','#FFD400'];
+
+function initDescriptivo() {
+  const depts = [...new Set(APP.SKUS.map(s => s.departamento))].sort();
+  const ddDept = document.getElementById('dd-dept');
+  ddDept.innerHTML = '<option value="">Todos</option>';
+  depts.forEach(d => { const o = document.createElement('option'); o.value=d; o.textContent=d; ddDept.appendChild(o); });
+
+  ddRebuildClase();
+
+  const canalWrap = document.getElementById('dd-canal-wrap');
+  if (APP.mapping.canal && APP.rawRows.length > 0) {
+    const canales = [...new Set(APP.rawRows.map(r => r[APP.mapping.canal]).filter(Boolean))].sort();
+    const ddCanal = document.getElementById('dd-canal');
+    ddCanal.innerHTML = '<option value="">Todos</option>';
+    canales.forEach(c => { const o = document.createElement('option'); o.value=c; o.textContent=c; ddCanal.appendChild(o); });
+    canalWrap.style.display = '';
+  } else {
+    canalWrap.style.display = 'none';
+  }
+
+  const fechaWrap = document.getElementById('dd-fecha-wrap');
+  if (APP.mapping.fecha && APP.rawRows.length > 0) {
+    const meses = [...new Set(APP.rawRows.map(r => normalizeMes(r[APP.mapping.fecha])).filter(Boolean))].sort();
+    if (meses.length > 1) {
+      const desde = document.getElementById('dd-mes-desde');
+      const hasta = document.getElementById('dd-mes-hasta');
+      [desde, hasta].forEach(sel => {
+        sel.innerHTML = '';
+        meses.forEach(m => { const o = document.createElement('option'); o.value=m; o.textContent=m; sel.appendChild(o); });
+      });
+      desde.value = meses[0];
+      hasta.value  = meses[meses.length - 1];
+      fechaWrap.style.display = 'flex';
+    } else {
+      fechaWrap.style.display = 'none';
+    }
+  } else {
+    fechaWrap.style.display = 'none';
+  }
+}
+
+function ddRebuildClase() {
+  const dept = document.getElementById('dd-dept').value;
+  const base = dept ? APP.SKUS.filter(s => s.departamento === dept) : APP.SKUS;
+  const clases = [...new Set(base.map(s => s.clase))].sort();
+  const el = document.getElementById('dd-clase');
+  el.innerHTML = '<option value="">Todas</option>';
+  clases.forEach(c => { const o = document.createElement('option'); o.value=c; o.textContent=c; el.appendChild(o); });
+  renderDescriptivo();
+}
+
+function getDescFilters() {
+  return {
+    dept:  document.getElementById('dd-dept').value,
+    clase: document.getElementById('dd-clase').value,
+    canal: document.getElementById('dd-canal') ? document.getElementById('dd-canal').value : '',
+    desde: document.getElementById('dd-mes-desde') ? document.getElementById('dd-mes-desde').value : '',
+    hasta: document.getElementById('dd-mes-hasta') ? document.getElementById('dd-mes-hasta').value : ''
+  };
+}
+
+function getDescFilteredRaw() {
+  if (!APP.rawRows.length) return [];
+  const f = getDescFilters();
+  const m = APP.mapping;
+  return APP.rawRows.filter(r => {
+    if (f.dept  && m.departamento && r[m.departamento] !== f.dept)  return false;
+    if (f.clase && m.clase        && r[m.clase]        !== f.clase) return false;
+    if (f.canal && m.canal        && r[m.canal]        !== f.canal) return false;
+    if (m.fecha) {
+      const mes = normalizeMes(r[m.fecha]);
+      if (f.desde && mes < f.desde) return false;
+      if (f.hasta && mes > f.hasta) return false;
+    }
+    return true;
+  });
+}
+
+function getDescFilteredSKUs() {
+  const f = getDescFilters();
+  return APP.SKUS.filter(s => {
+    if (f.dept  && s.departamento !== f.dept)  return false;
+    if (f.clase && s.clase        !== f.clase) return false;
+    return true;
+  });
+}
+
+function renderDescriptivo() {
+  const raw  = getDescFilteredRaw();
+  const skus = getDescFilteredSKUs();
+  const clean = v => parseFloat(String(v).replace(/[$,\s]/g,''));
+  const hasFecha = APP.mapping.fecha && raw.length > 0;
+  const hasCosto = !!(APP.mapping.costo || skus.some(s => s.costo !== null));
+
+  Object.values(DASH_DESC_CHARTS).forEach(c => { try { c.destroy(); } catch(e){} });
+  DASH_DESC_CHARTS = {};
+
+  // KPIs
+  let totalIng=0, totalU=0, totalMar=0, wPrecioNum=0, wPrecioDen=0;
+  if (raw.length > 0) {
+    raw.forEach(r => {
+      const p = clean(r[APP.mapping.precio]);
+      const q = clean(r[APP.mapping.unidades]);
+      if (isNaN(p)||p<=0||isNaN(q)||q<0) return;
+      totalIng += p*q; totalU += q; wPrecioNum += p*q; wPrecioDen += q;
+      if (APP.mapping.costo) { const c=clean(r[APP.mapping.costo]); if(!isNaN(c)&&c>0) totalMar+=(p-c)*q; }
+    });
+  } else {
+    skus.forEach(s => {
+      totalIng += s.precio_actual*s.unidades_hist; totalU += s.unidades_hist;
+      wPrecioNum += s.precio_actual*s.unidades_hist; wPrecioDen += s.unidades_hist;
+      if (s.costo!==null) totalMar += (s.precio_actual-s.costo)*s.unidades_hist;
+    });
+  }
+  const pProm = wPrecioDen > 0 ? wPrecioNum/wPrecioDen : 0;
+  const marPct = totalIng > 0 ? (totalMar/totalIng)*100 : 0;
+
+  document.getElementById('dd-kpi-ingreso').textContent  = '$'+Math.round(totalIng).toLocaleString('es-MX');
+  document.getElementById('dd-kpi-unidades').textContent = Math.round(totalU).toLocaleString('es-MX');
+  document.getElementById('dd-kpi-precio').textContent   = '$'+pProm.toFixed(2);
+  document.getElementById('dd-kpi-margen').textContent   = hasCosto ? '$'+Math.round(totalMar).toLocaleString('es-MX') : 'N/D';
+  document.getElementById('dd-kpi-margen-pct').textContent = hasCosto ? marPct.toFixed(1)+'% margen' : '';
+  document.getElementById('dd-kpi-skus').textContent     = skus.length;
+
+  hasFecha ? renderDescTemporal(raw, clean) : document.getElementById('dd-section-temporal').style.display='none';
+  if (hasFecha) document.getElementById('dd-section-temporal').style.display='';
+
+  renderDescDonut(skus, raw, clean);
+  renderDescTop10(skus, raw, clean);
+  renderDescScatterPlot(skus);
+}
+
+function buildMesAgg(raw, clean) {
+  const byMes = {};
+  raw.forEach(r => {
+    const mes = normalizeMes(r[APP.mapping.fecha]);
+    if (!mes) return;
+    const p = clean(r[APP.mapping.precio]);
+    const q = clean(r[APP.mapping.unidades]);
+    if (isNaN(p)||p<=0||isNaN(q)||q<0) return;
+    if (!byMes[mes]) byMes[mes] = {ing:0,u:0,mar:0,wP:0,wQ:0,depts:{}};
+    byMes[mes].ing += p*q; byMes[mes].u += q; byMes[mes].wP += p*q; byMes[mes].wQ += q;
+    if (APP.mapping.costo) { const c=clean(r[APP.mapping.costo]); if(!isNaN(c)&&c>0) byMes[mes].mar+=(p-c)*q; }
+    const dept = APP.mapping.departamento ? (r[APP.mapping.departamento]||'Otros') : 'Otros';
+    byMes[mes].depts[dept] = (byMes[mes].depts[dept]||0)+q;
+  });
+  return byMes;
+}
+
+function descLineOpts(yLabel, isCurrency) {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false,
+      callbacks:{ label: c => isCurrency ? '$'+Math.round(c.raw).toLocaleString('es-MX') : c.raw+'%' }
+    }},
+    scales:{
+      x:{ ticks:{maxTicksLimit:13,font:{size:11}}, grid:{display:false} },
+      y:{ ticks:{ callback: v => isCurrency ? '$'+Math.round(v/1000)+'k' : v+'%', font:{size:11} }, grid:{color:'rgba(0,0,0,0.06)'} }
+    }
+  };
+}
+
+function renderDescTemporal(raw, clean) {
+  const byMes = buildMesAgg(raw, clean);
+  const meses = Object.keys(byMes).sort();
+  if (meses.length < 2) { document.getElementById('dd-section-temporal').style.display='none'; return; }
+
+  const depts = [...new Set(raw.map(r => APP.mapping.departamento ? (r[APP.mapping.departamento]||'Otros') : 'Otros'))].sort();
+
+  // Ingreso mensual
+  DASH_DESC_CHARTS.ingreso = new Chart(document.getElementById('dd-chart-ingreso').getContext('2d'), {
+    type:'line',
+    data:{ labels:meses, datasets:[{ label:'Ingreso ($)', data:meses.map(m=>Math.round(byMes[m].ing)),
+      borderColor:'#111111', backgroundColor:'rgba(17,17,17,0.07)', fill:true, borderWidth:2, pointRadius:3, tension:0.3 }] },
+    options: descLineOpts('$', true)
+  });
+
+  // Unidades por mes stacked by dept
+  const byDeptMes = {};
+  raw.forEach(r => {
+    const mes = normalizeMes(r[APP.mapping.fecha]); if(!mes) return;
+    const q   = clean(r[APP.mapping.unidades]); if(isNaN(q)||q<0) return;
+    const dept = APP.mapping.departamento ? (r[APP.mapping.departamento]||'Otros') : 'Otros';
+    if(!byDeptMes[dept]) byDeptMes[dept]={};
+    byDeptMes[dept][mes] = (byDeptMes[dept][mes]||0)+q;
+  });
+  DASH_DESC_CHARTS.unidades = new Chart(document.getElementById('dd-chart-unidades').getContext('2d'), {
+    type:'bar',
+    data:{ labels:meses, datasets: depts.slice(0,8).map((dept,i) => ({
+      label:dept, data:meses.map(m=>Math.round((byDeptMes[dept]||{})[m]||0)),
+      backgroundColor: CHART_COLORS[i%CHART_COLORS.length]+'bb', borderWidth:0
+    }))},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top',labels:{font:{size:10},boxWidth:10}}, tooltip:{mode:'index',intersect:false} },
+      scales:{ x:{stacked:true,ticks:{maxTicksLimit:12,font:{size:10}},grid:{display:false}}, y:{stacked:true,ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.06)'}} }
+    }
+  });
+
+  // Precio promedio mensual
+  DASH_DESC_CHARTS.precio = new Chart(document.getElementById('dd-chart-precio').getContext('2d'), {
+    type:'line',
+    data:{ labels:meses, datasets:[{ label:'Precio promedio pond.',
+      data:meses.map(m=>byMes[m].wQ>0?+(byMes[m].wP/byMes[m].wQ).toFixed(2):null),
+      borderColor:'#0F6E56', backgroundColor:'rgba(15,110,86,0.07)', fill:true, borderWidth:2, pointRadius:3, tension:0.3 }] },
+    options: descLineOpts('$', true)
+  });
+
+  // Margen %
+  const marWrap = document.getElementById('dd-chart-margen-wrap');
+  if (APP.mapping.costo) {
+    marWrap.style.display='';
+    DASH_DESC_CHARTS.margen = new Chart(document.getElementById('dd-chart-margen').getContext('2d'), {
+      type:'line',
+      data:{ labels:meses, datasets:[{ label:'Margen bruto %',
+        data:meses.map(m=>byMes[m].ing>0?+((byMes[m].mar/byMes[m].ing)*100).toFixed(1):null),
+        borderColor:'#A32D2D', backgroundColor:'rgba(163,45,45,0.07)', fill:true, borderWidth:2, pointRadius:3, tension:0.3 }] },
+      options: descLineOpts('%', false)
+    });
+  } else {
+    marWrap.style.display='none';
+  }
+}
+
+function renderDescDonut(skus, raw, clean) {
+  const deptIng = {};
+  if (raw.length > 0) {
+    raw.forEach(r => {
+      const dept = APP.mapping.departamento ? (r[APP.mapping.departamento]||'Otros') : 'Otros';
+      const p=clean(r[APP.mapping.precio]), q=clean(r[APP.mapping.unidades]);
+      if(!isNaN(p)&&p>0&&!isNaN(q)&&q>=0) deptIng[dept]=(deptIng[dept]||0)+p*q;
+    });
+  } else {
+    skus.forEach(s => { deptIng[s.departamento]=(deptIng[s.departamento]||0)+s.precio_actual*s.unidades_hist; });
+  }
+  const labels = Object.keys(deptIng).sort((a,b)=>deptIng[b]-deptIng[a]);
+  DASH_DESC_CHARTS.donut = new Chart(document.getElementById('dd-chart-donut').getContext('2d'), {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data:labels.map(l=>Math.round(deptIng[l])), backgroundColor:CHART_COLORS, borderWidth:2, borderColor:'#fff' }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'right',labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{label:c=>`${c.label}: $${Math.round(c.raw).toLocaleString('es-MX')}`}} }
+    }
+  });
+}
+
+function renderDescTop10(skus, raw, clean) {
+  const skuIng = {};
+  if (raw.length > 0) {
+    raw.forEach(r => {
+      const sku=String(r[APP.mapping.sku]||'').trim(); if(!sku) return;
+      const p=clean(r[APP.mapping.precio]), q=clean(r[APP.mapping.unidades]);
+      if(!isNaN(p)&&p>0&&!isNaN(q)&&q>=0) {
+        if(!skuIng[sku]) skuIng[sku]={ing:0,nombre:APP.mapping.nombre?String(r[APP.mapping.nombre]||sku):sku};
+        skuIng[sku].ing+=p*q;
+      }
+    });
+  } else {
+    skus.forEach(s=>{ skuIng[s.sku]={ing:s.precio_actual*s.unidades_hist, nombre:s.nombre}; });
+  }
+  const top10 = Object.entries(skuIng).sort((a,b)=>b[1].ing-a[1].ing).slice(0,10);
+  DASH_DESC_CHARTS.top10 = new Chart(document.getElementById('dd-chart-top10').getContext('2d'), {
+    type:'bar',
+    data:{ labels:top10.map(([,d])=>d.nombre.substring(0,28)), datasets:[{
+      label:'Ingreso ($)', data:top10.map(([,d])=>Math.round(d.ing)),
+      backgroundColor:'#111111bb', borderWidth:0 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>'$'+Math.round(c.raw).toLocaleString('es-MX')}} },
+      scales:{ x:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,0.06)'}},
+               y:{ticks:{font:{size:10}}} }
+    }
+  });
+}
+
+function renderDescScatterPlot(skus) {
+  const colorMap = { ELASTICO:'#A32D2D', Elastico_NS:'#534AB7', Inelastico:'#854F0B', Sin_reaccion:'#5F5E5A', 'Sin datos':'#bbb' };
+  const byClass = {};
+  skus.forEach(s => {
+    const cls = s.clasificacion;
+    if (!byClass[cls]) byClass[cls] = [];
+    byClass[cls].push({x:s.precio_actual, y:s.unidades_hist, nombre:s.nombre});
+  });
+  DASH_DESC_CHARTS.scatter = new Chart(document.getElementById('dd-chart-scatter').getContext('2d'), {
+    type:'scatter',
+    data:{ datasets: Object.entries(byClass).map(([cls,pts])=>({
+      label: CLASS_LABEL[cls]||cls,
+      data: pts.map(p=>({x:p.x,y:p.y,nombre:p.nombre})),
+      backgroundColor:(colorMap[cls]||'#888')+'bb', pointRadius:6
+    }))},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top',labels:{font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.raw.nombre?`${c.raw.nombre}: $${c.raw.x.toFixed(2)}, ${Math.round(c.raw.y)} u.`:''}} },
+      scales:{
+        x:{title:{display:true,text:'Precio actual ($)',font:{size:11}},ticks:{callback:v=>'$'+v,font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}},
+        y:{title:{display:true,text:'Unidades históricas',font:{size:11}},ticks:{font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}}
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// DASHBOARD PREDICTIVO
+// ════════════════════════════════════════════════════════════════════
+let DASH_PRED_CHARTS = {};
+
+function initPredictivo() {
+  const depts = [...new Set(APP.SKUS.map(s => s.departamento))].sort();
+  const pdDept = document.getElementById('pd-dept');
+  pdDept.innerHTML = '<option value="">Todos</option>';
+  depts.forEach(d => { const o=document.createElement('option'); o.value=d; o.textContent=d; pdDept.appendChild(o); });
+}
+
+function getPredFilters() {
+  return {
+    dept:      document.getElementById('pd-dept').value,
+    accion:    document.getElementById('pd-accion').value,
+    clase:     document.getElementById('pd-clase-el').value,
+    horizonte: parseInt(document.getElementById('pd-horizonte').value)||6
+  };
+}
+
+function getPredSKUs() {
+  const f = getPredFilters();
+  return APP.SKUS.filter(s => {
+    if (f.dept   && s.departamento   !== f.dept)   return false;
+    if (f.accion && s.accion         !== f.accion)  return false;
+    if (f.clase  && s.clasificacion  !== f.clase)   return false;
+    return true;
+  });
+}
+
+function renderPredictivo() {
+  const skus = getPredSKUs();
+  const f    = getPredFilters();
+  Object.values(DASH_PRED_CHARTS).forEach(c => { try { c.destroy(); } catch(e){} });
+  DASH_PRED_CHARTS = {};
+
+  // KPIs
+  let ingAct=0, ingRec=0, marAct=0, marRec=0;
+  const skusConAccion = skus.filter(s=>!['MANTENER','NO_RECOMENDAR'].includes(s.accion)).length;
+  skus.forEach(s => {
+    const d = Math.round((s.precio_recomendado/s.precio_actual-1)*100);
+    const a = simulateRaw(s,0), r = simulateRaw(s,d);
+    ingAct+=a.ingreso; ingRec+=r.ingreso;
+    if(a.margen!==null) marAct+=a.margen;
+    if(r.margen!==null) marRec+=r.margen;
+  });
+  const dIngPct = ingAct>0?((ingRec/ingAct)-1)*100:0;
+  const dMarPct = marAct>0?((marRec/marAct)-1)*100:0;
+  const hasM = skus.some(s=>s.costo!==null);
+
+  document.getElementById('pd-kpi-proyectado').textContent = '$'+Math.round(ingRec).toLocaleString('es-MX');
+  const diEl = document.getElementById('pd-kpi-delta-ing');
+  diEl.textContent = (dIngPct>=0?'+':'')+dIngPct.toFixed(1)+'%';
+  diEl.className   = 'kpi-delta '+(dIngPct>=0?'kpi-positive':'kpi-negative');
+  const dmEl = document.getElementById('pd-kpi-delta-mar');
+  dmEl.textContent = hasM ? (dMarPct>=0?'+':'')+dMarPct.toFixed(1)+'%' : 'N/D';
+  dmEl.className   = 'kpi-delta '+(dMarPct>=0?'kpi-positive':'kpi-negative');
+  document.getElementById('pd-kpi-accion').textContent = skusConAccion;
+
+  renderPredScatter(skus);
+  renderPredWaterfall(skus);
+  renderPredComparativa(skus);
+  renderPredBetaEvol(skus);
+  renderPredForecast(skus, f.horizonte);
+}
+
+function renderPredScatter(skus) {
+  const actionColors = { BAJAR:'#111111', SUBIR:'#0F6E56', SUBIR_DIRECCIONAL:'#854F0B', MANTENER:'#aaa', NO_RECOMENDAR:'#ccc', EXPLORATORIO:'#534AB7' };
+  const byAccion = {};
+  skus.forEach(s => {
+    if(!byAccion[s.accion]) byAccion[s.accion]=[];
+    byAccion[s.accion].push({x:s.precio_actual, y:s.precio_recomendado, nombre:s.nombre});
+  });
+  const allP = skus.flatMap(s=>[s.precio_actual,s.precio_recomendado]);
+  const maxP = allP.length ? Math.max(...allP)*1.08 : 100;
+  DASH_PRED_CHARTS.scatter = new Chart(document.getElementById('pd-chart-scatter').getContext('2d'), {
+    type:'scatter',
+    data:{ datasets:[
+      { label:'Sin cambio', data:[{x:0,y:0},{x:maxP,y:maxP}], type:'line',
+        borderColor:'rgba(0,0,0,0.18)', borderDash:[5,5], pointRadius:0, borderWidth:1 },
+      ...Object.entries(byAccion).map(([accion,pts])=>({
+        label: ACTION_LABEL[accion]||accion,
+        data: pts.map(p=>({x:p.x,y:p.y,nombre:p.nombre})),
+        backgroundColor:(actionColors[accion]||'#888')+'bb', pointRadius:6
+      }))
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top',labels:{font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.raw.nombre?`${c.raw.nombre}: $${c.raw.x?.toFixed(2)} → $${c.raw.y?.toFixed(2)}`:''}} },
+      scales:{
+        x:{title:{display:true,text:'Precio actual ($)',font:{size:11}},ticks:{callback:v=>'$'+v,font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}},
+        y:{title:{display:true,text:'Precio recomendado ($)',font:{size:11}},ticks:{callback:v=>'$'+v,font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}}
+      }
+    }
+  });
+}
+
+function renderPredWaterfall(skus) {
+  const grupos = [
+    {label:'Bajar precio',  keys:['BAJAR'],                       color:'#111111'},
+    {label:'Subir precio',  keys:['SUBIR','SUBIR_DIRECCIONAL'],   color:'#0F6E56'},
+    {label:'Mantener',      keys:['MANTENER'],                    color:'#5F5E5A'},
+    {label:'Sin recom.',    keys:['NO_RECOMENDAR','EXPLORATORIO'], color:'#534AB7'}
+  ];
+  const vals = grupos.map(g => {
+    let delta=0;
+    skus.filter(s=>g.keys.includes(s.accion)).forEach(s=>{
+      const d=Math.round((s.precio_recomendado/s.precio_actual-1)*100);
+      delta+=simulateRaw(s,d).ingreso-simulateRaw(s,0).ingreso;
+    });
+    return Math.round(delta);
+  });
+  DASH_PRED_CHARTS.waterfall = new Chart(document.getElementById('pd-chart-waterfall').getContext('2d'), {
+    type:'bar',
+    data:{ labels:grupos.map(g=>g.label), datasets:[{
+      label:'Δ Ingreso esperado ($)',
+      data:vals,
+      backgroundColor:vals.map(v=>v>=0?'#0F6E5677':'#A32D2D77'),
+      borderColor:vals.map(v=>v>=0?'#0F6E56':'#A32D2D'), borderWidth:1.5
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>`Δ $${Math.round(c.raw).toLocaleString('es-MX')}`}} },
+      scales:{ x:{ticks:{font:{size:11}},grid:{display:false}},
+               y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}} }
+    }
+  });
+}
+
+function renderPredComparativa(skus) {
+  const depts = [...new Set(skus.map(s=>s.departamento))].sort();
+  const actD=[], recD=[];
+  depts.forEach(dept => {
+    let act=0, rec=0;
+    skus.filter(s=>s.departamento===dept).forEach(s=>{
+      act+=simulateRaw(s,0).ingreso;
+      const d=Math.round((s.precio_recomendado/s.precio_actual-1)*100);
+      rec+=simulateRaw(s,d).ingreso;
+    });
+    actD.push(Math.round(act)); recD.push(Math.round(rec));
+  });
+  DASH_PRED_CHARTS.comparativa = new Chart(document.getElementById('pd-chart-comparativa').getContext('2d'), {
+    type:'bar',
+    data:{ labels:depts.map(d=>d.length>18?d.substring(0,18)+'…':d),
+      datasets:[
+        {label:'Ingreso actual',    data:actD, backgroundColor:'#11111155', borderColor:'#111111', borderWidth:1},
+        {label:'Ingreso proyectado',data:recD, backgroundColor:'#0F6E5655', borderColor:'#0F6E56', borderWidth:1}
+      ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top',labels:{font:{size:11}}}, tooltip:{mode:'index',intersect:false,callbacks:{label:c=>`${c.dataset.label}: $${Math.round(c.raw).toLocaleString('es-MX')}`}} },
+      scales:{ x:{ticks:{font:{size:11}},grid:{display:false}},
+               y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}} }
+    }
+  });
+}
+
+function renderPredBetaEvol(skus) {
+  const sec = document.getElementById('pd-beta-section');
+  if (BETAS_MENSUAL.length===0) { sec.style.display='none'; return; }
+  sec.style.display='';
+  const skuSet = new Set(skus.map(s=>String(s.sku)));
+  const deptOf = {}; skus.forEach(s=>{ deptOf[String(s.sku)]=s.departamento; });
+  const filtered = BETAS_MENSUAL.filter(b=>skuSet.has(String(b.sku)));
+  if (!filtered.length) { sec.style.display='none'; return; }
+  const meses = [...new Set(filtered.map(b=>b.mes))].sort();
+  const depts = [...new Set(skus.map(s=>s.departamento))].sort();
+  const byDM  = {};
+  filtered.forEach(b => {
+    const dept=deptOf[String(b.sku)]||'Otros';
+    if(!byDM[dept]) byDM[dept]={};
+    if(!byDM[dept][b.mes]) byDM[dept][b.mes]=[];
+    byDM[dept][b.mes].push(b.beta);
+  });
+  DASH_PRED_CHARTS.beta = new Chart(document.getElementById('pd-chart-beta').getContext('2d'), {
+    type:'line',
+    data:{ labels:meses, datasets:depts.slice(0,6).map((dept,i)=>({
+      label:dept,
+      data:meses.map(m=>{ const bs=(byDM[dept]||{})[m]; return bs&&bs.length?+(bs.reduce((a,b)=>a+b,0)/bs.length).toFixed(3):null; }),
+      borderColor:CHART_COLORS[i%CHART_COLORS.length], backgroundColor:'transparent',
+      borderWidth:2, pointRadius:3, tension:0.3, spanGaps:true
+    }))},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top',labels:{font:{size:11}}}, tooltip:{mode:'index',intersect:false} },
+      scales:{ x:{ticks:{maxTicksLimit:12,font:{size:11}},grid:{display:false}},
+               y:{title:{display:true,text:'β promedio',font:{size:11}},ticks:{font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}} }
+    }
+  });
+}
+
+function renderPredForecast(skus, horizonte) {
+  const sec = document.getElementById('pd-forecast-section');
+  if (!APP.mapping.fecha||!APP.rawRows.length) { sec.style.display='none'; return; }
+  sec.style.display='';
+  const clean = v => parseFloat(String(v).replace(/[$,\s]/g,''));
+  const skuSet = new Set(skus.map(s=>String(s.sku)));
+  const byDM = {};
+  APP.rawRows.forEach(r => {
+    const sku = String(r[APP.mapping.sku]||'').trim();
+    if(!skuSet.has(sku)) return;
+    const dept = APP.mapping.departamento?(r[APP.mapping.departamento]||'Otros'):'Todos';
+    const mes  = normalizeMes(r[APP.mapping.fecha]);
+    const q    = clean(r[APP.mapping.unidades]);
+    if(!mes||isNaN(q)||q<0) return;
+    if(!byDM[dept]) byDM[dept]={};
+    byDM[dept][mes]=(byDM[dept][mes]||0)+q;
+  });
+  const allMeses = [...new Set(Object.values(byDM).flatMap(d=>Object.keys(d)))].sort();
+  if (allMeses.length<3) { sec.style.display='none'; return; }
+
+  function olsForecast(deptData, meses, n) {
+    const xs=meses.map((_,i)=>i), ys=meses.map(m=>deptData[m]||0);
+    const N=xs.length, xB=xs.reduce((a,b)=>a+b)/N, yB=ys.reduce((a,b)=>a+b)/N;
+    const SSxy=xs.reduce((acc,xi,i)=>acc+(xi-xB)*(ys[i]-yB),0);
+    const SSxx=xs.reduce((acc,xi)=>acc+(xi-xB)**2,0);
+    if(SSxx===0) return Array.from({length:N+n},()=>Math.round(yB));
+    const beta=SSxy/SSxx, alpha=yB-beta*xB;
+    return Array.from({length:N+n},(_,i)=>Math.max(0,Math.round(alpha+beta*i)));
+  }
+  function addMonth(ym) {
+    const [y,mo]=ym.split('-').map(Number), d=new Date(y,mo-1+1,1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  const last=allMeses[allMeses.length-1];
+  const future=[]; let cur=last;
+  for(let i=0;i<horizonte;i++){ cur=addMonth(cur); future.push(cur+'*'); }
+  const allLabels=[...allMeses,...future];
+  const depts=[...new Set(skus.map(s=>s.departamento))].sort().slice(0,5);
+
+  DASH_PRED_CHARTS.forecast = new Chart(document.getElementById('pd-chart-forecast').getContext('2d'), {
+    type:'line',
+    data:{ labels:allLabels, datasets:depts.flatMap((dept,i)=>{
+      const hist = allMeses.map(m=>(byDM[dept]||{})[m]||0);
+      const proj = olsForecast(byDM[dept]||{}, allMeses, horizonte);
+      const color= CHART_COLORS[i%CHART_COLORS.length];
+      return [
+        { label:dept+' (hist.)', data:[...hist,...Array(horizonte).fill(null)],
+          borderColor:color, backgroundColor:'transparent', borderWidth:2, pointRadius:2, tension:0.3 },
+        { label:dept+' (proyec.)', data:[...Array(allMeses.length-1).fill(null),hist[hist.length-1],...proj.slice(allMeses.length)],
+          borderColor:color, backgroundColor:'transparent', borderWidth:2, borderDash:[5,5], pointRadius:2, tension:0.3 }
+      ];
+    })},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top',labels:{font:{size:10},filter:item=>!item.text.includes('proyec.')||item.datasetIndex<2}},
+        tooltip:{mode:'index',intersect:false} },
+      scales:{ x:{ticks:{maxTicksLimit:16,font:{size:10}},grid:{display:false}},
+               y:{title:{display:true,text:'Unidades',font:{size:11}},ticks:{font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}} }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════════
 // UI HELPERS — screen / tab switching
 // ════════════════════════════════════════════════════════════════════
 function showScreen(name) {
@@ -1717,7 +2432,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Main tabs
   document.getElementById('main-tabs').addEventListener('click', e => {
     const tab = e.target.dataset.tab;
-    if (tab) activateTab(tab);
+    if (!tab) return;
+    activateTab(tab);
+    if (tab === 'descriptivo') renderDescriptivo();
+    if (tab === 'predictivo')  renderPredictivo();
   });
 
   // Slider live update
