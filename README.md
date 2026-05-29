@@ -17,6 +17,7 @@ escenarios y promociones, y entrega una recomendación por SKU con sus advertenc
 
 ## Archivos
 - `index.html` — la aplicación (autónoma, sin dependencias que instalar)
+- `assets/officemax-logo.svg` — logo usado en el encabezado visual
 - `plantilla_input.csv` — esquema de datos de entrada
 - `prueba_archivo_y_accesorios.csv`, `prueba_papel.csv`, `prueba_carpetas.csv` — archivos de prueba por pod
 

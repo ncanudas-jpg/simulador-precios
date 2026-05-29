@@ -142,8 +142,39 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .export-card-desc  { font-size: 13px; color: var(--text-secondary); flex: 1; }
 .export-card .btn-primary, .export-card .btn-secondary { margin-top: 14px; }
 .footer { margin-top: 32px; padding-top: 16px; border-top: 0.5px solid var(--border); font-size: 12px; color: var(--text-tertiary); text-align: center; }
+.brand-header { background: var(--om-black); color: white; border-radius: 16px; padding: 22px; margin-bottom: 22px; box-shadow: 0 18px 42px rgba(17,17,17,0.16); }
+.brand-top { display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap; margin-bottom:18px; }
+.brand-logo-card { background:white; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:12px; min-height:56px; }
+.brand-logo-card img { width: 178px; max-width: 48vw; height:auto; display:block; }
+.brand-kicker { color: var(--om-yellow); font-size:12px; text-transform:uppercase; letter-spacing:0.8px; font-weight:800; margin:0 0 4px; }
+.brand-title { color:white; font-size:30px; line-height:1.12; margin:0; max-width:760px; }
+.brand-copy { color:rgba(255,255,255,0.76); font-size:15px; margin:10px 0 0; max-width:760px; }
+.brand-pill { border:1px solid rgba(255,212,0,0.5); color:var(--om-yellow); border-radius:999px; padding:7px 12px; font-size:12px; font-weight:700; white-space:nowrap; }
+.process-nav { display:grid; grid-template-columns:repeat(7, minmax(90px, 1fr)); gap:8px; margin-top:16px; }
+.process-step { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.14); border-radius:10px; padding:10px; min-height:72px; }
+.process-step strong { display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--om-yellow); color:var(--om-black); font-size:12px; margin-bottom:7px; }
+.process-step span { display:block; color:white; font-size:12px; line-height:1.2; font-weight:650; }
+.intro-panel { max-width:720px; margin:0 auto 18px; background:white; border:1px solid var(--border); border-radius:16px; padding:20px; text-align:left; box-shadow:0 10px 30px rgba(17,17,17,0.06); }
+.intro-panel h2 { margin:0 0 8px; font-size:20px; font-weight:800; }
+.intro-panel p { margin:0; color:var(--text-secondary); font-size:14px; }
+.demo-card-title { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.demo-card-title strong { font-size:16px; }
+.demo-metrics { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin-top:10px; }
+.demo-metrics span { background:rgba(17,17,17,0.08); border-radius:8px; padding:8px; font-size:12px; font-weight:700; text-align:center; }
+.limitation-grid { display:grid; grid-template-columns:repeat(2, minmax(260px, 1fr)); gap:16px; margin:16px 0 20px; }
+.limitation-box { border:1px solid var(--border); border-top:4px solid var(--om-yellow); border-radius:12px; padding:16px; background:var(--om-paper); }
+.limitation-box h3 { color:var(--om-black); margin-bottom:10px; }
+.limitation-box ul { font-size:14px; padding-left:20px; margin:8px 0 0; line-height:1.8; }
+#tabla-maestra th:nth-child(9), #tabla-maestra th:nth-child(10), #tabla-maestra th:nth-child(11),
+#tabla-maestra td:nth-child(9), #tabla-maestra td:nth-child(10), #tabla-maestra td:nth-child(11) { background:var(--om-paper); }
+#tabla-maestra td:nth-child(10) { font-weight:800; }
 @media (max-width: 700px) {
   body { padding: 12px; }
+  .brand-header { padding:16px; }
+  .brand-title { font-size:24px; }
+  .process-nav { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .limitation-grid { grid-template-columns:1fr; }
+  .demo-metrics { grid-template-columns:1fr; }
   .cascade-filters .sku-sel { min-width: 100%; }
   .chart-wrap { height: 240px; }
   .mapping-row { grid-template-columns: 1fr; }
@@ -161,12 +192,36 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
+<header class="brand-header">
+  <div class="brand-top">
+    <div class="brand-logo-card">
+      <img src="assets/officemax-logo.svg" alt="Office Depot OfficeMax">
+    </div>
+    <div class="brand-pill">Pricing dinámico · herramienta reusable</div>
+  </div>
+  <p class="brand-kicker">OfficeMax pricing lab</p>
+  <h1 class="brand-title">Sube ventas, estima elasticidad y recibe recomendaciones por SKU.</h1>
+  <p class="brand-copy">Dashboard web para validar datos, simular escenarios de precio y promociones, comparar ingreso/margen y exportar decisiones accionables para el equipo.</p>
+  <div class="process-nav" aria-label="Flujo de 7 funciones">
+    <div class="process-step"><strong>1</strong><span>Cargar CSV o Excel</span></div>
+    <div class="process-step"><strong>2</strong><span>Mapear columnas</span></div>
+    <div class="process-step"><strong>3</strong><span>Validar calidad</span></div>
+    <div class="process-step"><strong>4</strong><span>Calcular base</span></div>
+    <div class="process-step"><strong>5</strong><span>Estimar elasticidad</span></div>
+    <div class="process-step"><strong>6</strong><span>Simular precios</span></div>
+    <div class="process-step"><strong>7</strong><span>Exportar recomendaciones</span></div>
+  </div>
+</header>
 
 <!-- ═══════════════════════════════════════════════
      SCREEN 1 — UPLOAD
      ═══════════════════════════════════════════════ -->
 <div id="screen-upload">
   <div style="max-width:580px; margin:60px auto; text-align:center;">
+    <div class="intro-panel">
+      <h2>Empieza con un archivo o con el demo</h2>
+      <p>La herramienta guía el flujo completo: carga, mapeo, semáforo de calidad, cálculos base, elasticidad, simulación y recomendaciones por SKU.</p>
+    </div>
     <h1 style="font-size:28px; margin-bottom:6px;">Dynamic Pricing Analyzer</h1>
     <p class="subtitle" style="margin-bottom:32px;">Estimación de elasticidad precio-demanda y simulación de escenarios</p>
 
@@ -185,8 +240,9 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
     </div>
 
     <button class="btn-demo" onclick="loadDemo()">
-      Usar datos demo OfficeMax →
-      <small>51 SKUs · Archivo y Accesorios · 28 meses de historial</small>
+      <span class="demo-card-title"><strong>Usar datos demo OfficeMax</strong><span>→</span></span>
+      <small>Dataset listo para probar todo el flujo sin cargar archivos.</small>
+      <span class="demo-metrics"><span>51 SKUs</span><span>28 meses</span><span>Archivo y Accesorios</span></span>
     </button>
 
     <p style="margin-top:20px;">
@@ -303,7 +359,7 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
       <h3>Beta a lo largo del tiempo</h3>
       <div class="beta-chart-wrap"><canvas id="chart-beta"></canvas></div>
       <p style="font-size:12px; color:var(--text-tertiary); margin:4px 0 0;">
-        Puntos intensos = p &lt; 0.10. Línea azul = β global de referencia.
+        Puntos intensos = p &lt; 0.10. Línea negra = β global de referencia.
       </p>
     </div>
 
@@ -352,7 +408,7 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
       <h3>Curvas de simulación (±60%)</h3>
       <div class="chart-wrap"><canvas id="chart-sim"></canvas></div>
       <p style="font-size:12px; color:var(--text-tertiary); margin:8px 0 0;">
-        Línea vertical azul = selección actual. Verde = ingreso; roja = margen bruto.
+        Línea vertical negra = selección actual. Verde = ingreso; roja = margen bruto.
       </p>
     </div>
 
@@ -519,43 +575,51 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
       <h2 style="margin-top:0;">Limitaciones del modelo</h2>
       <p style="color:var(--text-secondary); font-size:14px; margin-bottom:20px;">Esta sección es requerida como parte del entregable. El objetivo es transparentar los supuestos y restricciones del análisis.</p>
 
-      <h3>Supuestos del modelo</h3>
-      <ul style="font-size:14px; padding-left:20px; margin:8px 0 20px; line-height:2;">
-        <li>La demanda sigue una función log-log: <code>log(q+1) = α + β·log(p)</code></li>
-        <li>La elasticidad β es constante en el rango de precios analizado</li>
-        <li>Las unidades vendidas son un proxy válido de la demanda (no captura demanda insatisfecha)</li>
-        <li>El costo unitario es constante (no hay economías de escala ni costos variables)</li>
-        <li>Las ventas de un SKU no afectan las ventas de otros (sin sustitución cruzada)</li>
-        <li>El entorno competitivo permanece estable durante el período de simulación</li>
-      </ul>
+      <div class="limitation-grid">
+        <div class="limitation-box">
+          <h3>Qué sí puede hacer</h3>
+          <ul>
+            <li>Simular escenarios de precio por SKU.</li>
+            <li>Comparar ingreso y margen entre escenarios.</li>
+            <li>Estimar elasticidad exploratoria con modelo log-log.</li>
+            <li>Clasificar SKUs por acción sugerida.</li>
+            <li>Exportar recomendaciones para revisión del equipo.</li>
+          </ul>
+        </div>
+        <div class="limitation-box">
+          <h3>Qué no puede hacer todavía</h3>
+          <ul>
+            <li>No garantiza causalidad ni reemplaza pruebas A/B.</li>
+            <li>No fija precios automáticamente.</li>
+            <li>No modela competencia, inventario ni stockouts.</li>
+            <li>No considera elasticidades cruzadas entre SKUs.</li>
+            <li>No corrige costos o precios mal capturados.</li>
+          </ul>
+        </div>
+      </div>
 
-      <h3>Limitaciones de los datos</h3>
-      <ul style="font-size:14px; padding-left:20px; margin:8px 0 20px; line-height:2;">
-        <li>Se requieren al menos 5 observaciones de precio–cantidad por SKU para estimar β</li>
-        <li>Si el precio no varía entre períodos, la regresión no puede identificar β (SSxx = 0)</li>
-        <li>Los outliers de precio (errores de captura) no se detectan ni depuran automáticamente</li>
-        <li>SKUs con β ≥ 0 estadísticamente significativa pueden indicar colinealidad o datos erróneos</li>
-        <li>La base de costos puede presentar inconsistencias; los márgenes son direccionales</li>
-      </ul>
-
-      <h3>Lo que el modelo NO hace</h3>
-      <ul style="font-size:14px; padding-left:20px; margin:8px 0 20px; line-height:2;">
-        <li>No modela efectos de estacionalidad ni tendencia temporal de la demanda</li>
-        <li>No considera elasticidades cruzadas entre SKUs de la misma categoría</li>
-        <li>No optimiza el portafolio completo; analiza cada SKU de forma independiente</li>
-        <li>No predice el impacto de acciones competidoras o cambios macroeconómicos</li>
-        <li>No reemplaza una prueba A/B controlada antes de un rollout de precios</li>
-        <li>No estima la respuesta a la demanda ante cambios de calidad o posicionamiento</li>
-      </ul>
-
-      <h3>Recomendaciones para uso correcto</h3>
-      <ul style="font-size:14px; padding-left:20px; margin:8px 0 20px; line-height:2;">
-        <li>Validar los cambios recomendados con pruebas piloto antes de aplicarlos masivamente</li>
-        <li>Revisar SKUs con p-valor > 0.10: la β puede no ser confiable</li>
-        <li>Complementar con información cualitativa: negociación con proveedor, posicionamiento, estrategia de canal</li>
-        <li>Repetir el análisis periódicamente (mínimo trimestral) para detectar cambios en la elasticidad</li>
-        <li>Consultar al equipo de finanzas para validar la base de costos antes de usar márgenes en decisiones</li>
-      </ul>
+      <div class="limitation-grid">
+        <div class="limitation-box">
+          <h3>Supuestos del modelo</h3>
+          <ul>
+            <li>La demanda sigue una función log-log: <code>log(q+1) = α + β·log(p)</code>.</li>
+            <li>La elasticidad β es constante en el rango analizado.</li>
+            <li>Las unidades vendidas son proxy de demanda.</li>
+            <li>El costo unitario se mantiene estable.</li>
+            <li>El entorno competitivo permanece comparable.</li>
+          </ul>
+        </div>
+        <div class="limitation-box">
+          <h3>Uso recomendado</h3>
+          <ul>
+            <li>Validar cambios con pilotos antes de rollout masivo.</li>
+            <li>Revisar SKUs con p-valor &gt; 0.10.</li>
+            <li>Complementar con criterio comercial y proveedor.</li>
+            <li>Actualizar el análisis de forma periódica.</li>
+            <li>Validar costos con finanzas antes de decidir por margen.</li>
+          </ul>
+        </div>
+      </div>
 
       <div class="note">
         <strong>Nota académica:</strong> Este modelo de estimación de elasticidad via OLS log-log es un punto de partida robusto para decisiones de pricing táctico. Su simplicidad es también su virtud: los resultados son interpretables y auditables sin infraestructura adicional. Para decisiones estratégicas se recomienda complementar con modelos de demanda jerárquicos o métodos de inferencia causal.
