@@ -8,15 +8,20 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 :root {
+  --om-black: #111111;
+  --om-charcoal: #242424;
+  --om-yellow: #FFD400;
+  --om-yellow-soft: #FFF4B8;
+  --om-paper: #FFFDF2;
   --bg-primary: #ffffff;
-  --bg-secondary: #f5f4ef;
-  --bg-tertiary: #faf9f5;
+  --bg-secondary: #fff8d6;
+  --bg-tertiary: #f7f4e8;
   --text-primary: #1a1a1a;
   --text-secondary: #6b6b6b;
   --text-tertiary: #888780;
   --border: rgba(0,0,0,0.15);
   --border-strong: rgba(0,0,0,0.3);
-  --c-blue-50: #E6F1FB; --c-blue-600: #185FA5; --c-blue-800: #0C447C;
+  --c-blue-50: #FFF4B8; --c-blue-600: #111111; --c-blue-800: #111111;
   --c-teal-50: #E1F5EE; --c-teal-600: #0F6E56; --c-teal-800: #085041;
   --c-amber-50: #FAEEDA; --c-amber-600: #854F0B; --c-amber-800: #633806;
   --c-red-50: #FCEBEB; --c-red-600: #A32D2D; --c-red-800: #791F1F;
@@ -28,11 +33,11 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; padding: 24px; background: var(--bg-tertiary); font-family: var(--font-sans); font-size: 15px; line-height: 1.6; color: var(--text-primary); max-width: 1280px; margin-left: auto; margin-right: auto; }
-h1 { font-size: 24px; font-weight: 500; margin: 0 0 4px; }
+h1 { font-size: 24px; font-weight: 800; margin: 0 0 4px; }
 h2 { font-size: 18px; font-weight: 500; margin: 24px 0 12px; }
 h3 { font-size: 13px; font-weight: 500; margin: 0 0 8px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
 .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 24px; }
-.card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; }
+.card { background: var(--bg-primary); border: 0.5px solid var(--border); border-top: 4px solid var(--om-yellow); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(17,17,17,0.06); }
 .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 16px 0; }
 .metric { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 14px; }
 .metric-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
@@ -41,10 +46,10 @@ h3 { font-size: 13px; font-weight: 500; margin: 0 0 8px; color: var(--text-secon
 .metric-positive { color: var(--c-teal-800); }
 .metric-negative { color: var(--c-red-800); }
 select, input[type="text"] { padding: 8px 12px; border: 0.5px solid var(--border); border-radius: var(--radius-md); font-size: 14px; font-family: inherit; background: var(--bg-primary); height: 36px; }
-select:focus, input[type="text"]:focus { outline: none; border-color: var(--c-blue-600); box-shadow: 0 0 0 2px rgba(24,95,165,0.15); }
+select:focus, input[type="text"]:focus { outline: none; border-color: var(--om-black); box-shadow: 0 0 0 2px rgba(255,212,0,0.45); }
 input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: var(--bg-secondary); border-radius: 2px; outline: none; }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--c-blue-600); cursor: pointer; }
-input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--c-blue-600); cursor: pointer; border: none; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--om-black); border: 3px solid var(--om-yellow); cursor: pointer; }
+input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--om-black); border: 3px solid var(--om-yellow); cursor: pointer; }
 .badge { display: inline-block; padding: 3px 9px; border-radius: var(--radius-md); font-size: 12px; font-weight: 500; }
 .badge-elastico      { background: var(--c-red-50);    color: var(--c-red-800); }
 .badge-elastico-ns   { background: var(--c-purple-50); color: var(--c-purple-800); }
@@ -97,19 +102,19 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .chip-mantener   { background: var(--c-gray-50);    color: var(--c-gray-600); }
 .chip-sinrec     { background: var(--c-purple-50);  color: var(--c-purple-800); }
 .chip-todos      { background: var(--bg-secondary); color: var(--text-secondary); font-size:13px; display:flex; align-items:center; justify-content:center; }
-.btn-primary { padding: 9px 20px; background: var(--c-blue-600); color: white; border: none; border-radius: var(--radius-md); font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
-.btn-primary:hover { background: var(--c-blue-800); }
+.btn-primary { padding: 9px 20px; background: var(--om-black); color: var(--om-yellow); border: 1px solid var(--om-black); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.btn-primary:hover { background: var(--om-charcoal); }
 .btn-secondary { padding: 9px 20px; background: white; color: var(--text-primary); border: 0.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 14px; cursor: pointer; }
 .btn-secondary:hover { background: var(--bg-secondary); }
 .btn-preset { padding: 6px 12px; border: 0.5px solid var(--border); border-radius: 6px; background: white; cursor: pointer; font-size: 13px; font-family: inherit; }
 .btn-preset:hover { background: var(--bg-secondary); }
-.btn-optimal { padding: 6px 12px; border: 0.5px solid var(--c-blue-600); border-radius: 6px; background: var(--c-blue-50); color: var(--c-blue-800); cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit; }
+.btn-optimal { padding: 6px 12px; border: 0.5px solid var(--om-black); border-radius: 6px; background: var(--om-yellow); color: var(--om-black); cursor: pointer; font-size: 13px; font-weight: 700; font-family: inherit; }
 /* Upload screen */
-.drop-zone { border: 2px dashed var(--border-strong); border-radius: var(--radius-lg); padding: 48px 32px; text-align: center; cursor: pointer; transition: background 0.15s; margin-bottom: 16px; }
-.drop-zone:hover, .drop-zone.drag-over { background: var(--c-blue-50); border-color: var(--c-blue-600); }
+.drop-zone { border: 2px dashed var(--om-black); border-radius: var(--radius-lg); padding: 48px 32px; text-align: center; cursor: pointer; transition: background 0.15s; margin-bottom: 16px; background: var(--om-paper); }
+.drop-zone:hover, .drop-zone.drag-over { background: var(--om-yellow-soft); border-color: var(--om-black); }
 .drop-icon { font-size: 40px; margin-bottom: 12px; }
-.btn-demo { width: 100%; padding: 18px 24px; background: var(--c-teal-50); color: var(--c-teal-800); border: 1.5px solid var(--c-teal-600); border-radius: var(--radius-lg); font-family: inherit; font-size: 15px; font-weight: 500; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 2px; }
-.btn-demo:hover { background: #d0eee3; }
+.btn-demo { width: 100%; padding: 18px 24px; background: var(--om-yellow); color: var(--om-black); border: 1.5px solid var(--om-black); border-radius: var(--radius-lg); font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 2px; }
+.btn-demo:hover { background: #ffe45c; }
 .btn-demo small { font-size: 12px; font-weight: 400; opacity: 0.75; }
 /* Mapping screen */
 .mapping-row { display: grid; grid-template-columns: 180px 1fr 120px; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
@@ -1363,7 +1368,7 @@ function updateSimChart(currentDelta) {
   const deltas = Array.from({length:121}, (_,i) => -60+i);
   const lineData = deltas.map((_,i) => i===idx ? simulateRaw(s, currentDelta).ingreso : null);
   APP.chartSim.data.datasets.push({
-    label:'__line', data:lineData, borderColor:'rgba(24,95,165,0.6)', borderWidth:2,
+    label:'__line', data:lineData, borderColor:'rgba(17,17,17,0.72)', borderWidth:2,
     borderDash:[4,4], pointRadius:0, tension:0, spanGaps:false
   });
   APP.chartSim.update('none');
@@ -1391,7 +1396,7 @@ function renderBetaChart() {
       labels,
       datasets: [
         { type:'scatter', label:'β mensual', data:betas.map((b,i)=>({x:i,y:b})), backgroundColor:colors, pointRadius:6 },
-        { type:'line', label:'β global', data:Array(data.length).fill(s.beta), borderColor:'#185FA5', borderWidth:1.5, borderDash:[4,4], pointRadius:0, tension:0 }
+        { type:'line', label:'β global', data:Array(data.length).fill(s.beta), borderColor:'#111111', borderWidth:1.5, borderDash:[4,4], pointRadius:0, tension:0 }
       ]
     },
     options: {
