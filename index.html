@@ -163,6 +163,10 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .dashboard-sidebar .process-step { min-height:auto; padding:9px; display:flex; align-items:center; gap:9px; }
 .dashboard-sidebar .process-step strong { margin:0; flex:0 0 auto; }
 .dashboard-sidebar .process-step span { font-size:12px; }
+.sidebar-status { display:grid; gap:8px; margin-bottom:16px; }
+.sidebar-stat { border:1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.08); border-radius:8px; padding:10px; }
+.sidebar-stat strong { display:block; color:var(--om-yellow); font-size:20px; line-height:1; margin-bottom:4px; }
+.sidebar-stat span { display:block; color:rgba(255,255,255,0.76); font-size:12px; line-height:1.25; }
 #screen-dashboard .tabs { display:grid; gap:7px; border-bottom:0; margin:0; }
 #screen-dashboard .tab { width:100%; text-align:left; color:white; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12); border-left:4px solid transparent; border-radius:8px; margin:0; font-weight:650; }
 #screen-dashboard .tab.active { color:var(--om-black); background:var(--om-yellow); border-color:var(--om-yellow); border-left-color:white; font-weight:800; }
@@ -333,15 +337,11 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
       <div class="dashboard-sidebar-logo">
         <img src="assets/officemax-logo.svg" alt="OfficeMax">
       </div>
-      <h3>Flujo de análisis</h3>
-      <div class="process-nav" aria-label="Flujo de 7 funciones">
-        <div class="process-step"><strong>1</strong><span>Cargar CSV o Excel</span></div>
-        <div class="process-step"><strong>2</strong><span>Mapear columnas</span></div>
-        <div class="process-step"><strong>3</strong><span>Validar calidad</span></div>
-        <div class="process-step"><strong>4</strong><span>Calcular base</span></div>
-        <div class="process-step"><strong>5</strong><span>Estimar elasticidad</span></div>
-        <div class="process-step"><strong>6</strong><span>Simular precios</span></div>
-        <div class="process-step"><strong>7</strong><span>Exportar recomendaciones</span></div>
+      <h3>Estado del análisis</h3>
+      <div class="sidebar-status" aria-label="Estado del análisis">
+        <div class="sidebar-stat"><strong id="side-skus">—</strong><span>SKUs cargados</span></div>
+        <div class="sidebar-stat"><strong id="side-actions">—</strong><span>con acción sugerida</span></div>
+        <div class="sidebar-stat"><strong id="side-source">—</strong><span>fuente de datos</span></div>
       </div>
       <h3>Menú</h3>
       <div class="tabs" id="main-tabs">
@@ -722,6 +722,14 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
       <div class="dash-chart-wrap"><canvas id="dd-chart-scatter"></canvas></div>
       <p style="font-size:12px;color:var(--text-tertiary);margin:4px 0 0;">Un punto por SKU filtrado.</p>
     </div>
+
+    <div class="card">
+      <h3 id="dd-location-title">Ingreso por tienda / zona</h3>
+      <div class="dash-chart-wrap"><canvas id="dd-chart-location"></canvas></div>
+      <p style="font-size:12px;color:var(--text-tertiary);margin:4px 0 0;" id="dd-location-note">
+        Agrupa por zona, tienda o departamento según las columnas disponibles en el archivo.
+      </p>
+    </div>
   </div>
 
   <!-- ─── TAB 7: DASHBOARD PREDICTIVO ───────────────────────────── -->
@@ -783,6 +791,12 @@ td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
     <div class="card">
       <h3>Ingreso actual vs proyectado por departamento</h3>
       <div class="dash-chart-wrap"><canvas id="pd-chart-comparativa"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h3>Top 10 SKUs por impacto esperado en ingreso</h3>
+      <div class="dash-chart-tall"><canvas id="pd-chart-impacto"></canvas></div>
+      <p style="font-size:12px;color:var(--text-tertiary);margin:4px 0 0;">Impacto = ingreso estimado con precio recomendado menos ingreso actual.</p>
     </div>
 
     <div class="card" id="pd-beta-section">
@@ -1408,6 +1422,7 @@ function buildAndShowDashboard() {
   }
 
   initDashboardFilters();
+  updateSidebarSummary();
   renderSummaryStats();
   renderTabla();
   renderPlan();
@@ -1419,6 +1434,13 @@ function buildAndShowDashboard() {
   // Select first SKU
   const firstSku = APP.SKUS[0];
   if (firstSku) selectSku(firstSku.sku);
+}
+
+function updateSidebarSummary() {
+  const actionable = APP.SKUS.filter(s => !['MANTENER','NO_RECOMENDAR','INVESTIGAR'].includes(s.accion)).length;
+  document.getElementById('side-skus').textContent = APP.SKUS.length.toLocaleString('es-MX');
+  document.getElementById('side-actions').textContent = actionable.toLocaleString('es-MX');
+  document.getElementById('side-source').textContent = APP.mode === 'demo' ? 'Demo' : 'Archivo';
 }
 
 function initDashboardFilters() {
@@ -2061,6 +2083,7 @@ function renderDescriptivo() {
   renderDescDonut(skus, raw, clean);
   renderDescTop10(skus, raw, clean);
   renderDescScatterPlot(skus);
+  renderDescLocation(skus, raw, clean);
 }
 
 function buildMesAgg(raw, clean) {
@@ -2230,6 +2253,46 @@ function renderDescScatterPlot(skus) {
   });
 }
 
+function renderDescLocation(skus, raw, clean) {
+  const totals = {};
+  let groupLabel = 'departamento';
+  let title = 'Ingreso por departamento';
+  if (raw.length > 0) {
+    const groupField = APP.mapping.region || APP.mapping.canal || APP.mapping.departamento;
+    groupLabel = APP.mapping.region ? 'zona' : APP.mapping.canal ? 'tienda / canal' : APP.mapping.departamento ? 'departamento' : 'total';
+    title = APP.mapping.region ? 'Ingreso por zona' : APP.mapping.canal ? 'Ingreso por tienda / canal' : 'Ingreso por departamento';
+    raw.forEach(r => {
+      const group = groupField ? String(r[groupField] || 'Sin dato') : 'Total';
+      const p = clean(r[APP.mapping.precio]);
+      const q = clean(r[APP.mapping.unidades]);
+      if(!isNaN(p)&&p>0&&!isNaN(q)&&q>=0) totals[group] = (totals[group] || 0) + p*q;
+    });
+  } else {
+    skus.forEach(s => {
+      totals[s.departamento] = (totals[s.departamento] || 0) + s.precio_actual * s.unidades_hist;
+    });
+  }
+
+  const top = Object.entries(totals).sort((a,b)=>b[1]-a[1]).slice(0,12);
+  document.getElementById('dd-location-title').textContent = title;
+  document.getElementById('dd-location-note').textContent = `Vista descriptiva agrupada por ${groupLabel}; muestra los grupos con mayor ingreso.`;
+  DASH_DESC_CHARTS.location = new Chart(document.getElementById('dd-chart-location').getContext('2d'), {
+    type:'bar',
+    data:{ labels:top.map(([label])=>label.length>26?label.substring(0,26)+'…':label), datasets:[{
+      label:'Ingreso ($)',
+      data:top.map(([,value])=>Math.round(value)),
+      backgroundColor:top.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]+'aa'),
+      borderColor:top.map((_,i)=>CHART_COLORS[i%CHART_COLORS.length]),
+      borderWidth:1
+    }]},
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>'$'+Math.round(c.raw).toLocaleString('es-MX')}} },
+      scales:{ x:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,0.06)'}},
+               y:{ticks:{font:{size:10}},grid:{display:false}} }
+    }
+  });
+}
+
 // ════════════════════════════════════════════════════════════════════
 // DASHBOARD PREDICTIVO
 // ════════════════════════════════════════════════════════════════════
@@ -2293,6 +2356,7 @@ function renderPredictivo() {
   renderPredScatter(skus);
   renderPredWaterfall(skus);
   renderPredComparativa(skus);
+  renderPredImpacto(skus);
   renderPredBetaEvol(skus);
   renderPredForecast(skus, f.horizonte);
 }
@@ -2382,6 +2446,34 @@ function renderPredComparativa(skus) {
       plugins:{ legend:{position:'top',labels:{font:{size:11}}}, tooltip:{mode:'index',intersect:false,callbacks:{label:c=>`${c.dataset.label}: $${Math.round(c.raw).toLocaleString('es-MX')}`}} },
       scales:{ x:{ticks:{font:{size:11}},grid:{display:false}},
                y:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:11}},grid:{color:'rgba(0,0,0,0.06)'}} }
+    }
+  });
+}
+
+function renderPredImpacto(skus) {
+  const top = skus.map(s => {
+    const d = Math.round((s.precio_recomendado / s.precio_actual - 1) * 100);
+    return {
+      nombre: s.nombre,
+      sku: s.sku,
+      delta: simulateRaw(s, d).ingreso - simulateRaw(s, 0).ingreso
+    };
+  }).sort((a,b)=>Math.abs(b.delta)-Math.abs(a.delta)).slice(0,10);
+
+  DASH_PRED_CHARTS.impacto = new Chart(document.getElementById('pd-chart-impacto').getContext('2d'), {
+    type:'bar',
+    data:{ labels:top.map(x => `${String(x.sku).slice(-4)} · ${x.nombre.substring(0,24)}`),
+      datasets:[{
+        label:'Impacto en ingreso ($)',
+        data:top.map(x => Math.round(x.delta)),
+        backgroundColor:top.map(x => x.delta >= 0 ? '#0F6E5677' : '#A32D2D77'),
+        borderColor:top.map(x => x.delta >= 0 ? '#0F6E56' : '#A32D2D'),
+        borderWidth:1.5
+      }]},
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>`Δ $${Math.round(c.raw).toLocaleString('es-MX')}`}} },
+      scales:{ x:{ticks:{callback:v=>'$'+Math.round(v/1000)+'k',font:{size:10}},grid:{color:'rgba(0,0,0,0.06)'}},
+               y:{ticks:{font:{size:10}},grid:{display:false}} }
     }
   });
 }
